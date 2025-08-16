@@ -36,13 +36,14 @@ function EmployeeEngagement() {
   const [workspaces, setWorkspaces] = useState([]);
   const [selectedWorkspace, setSelectedWorkspace] = useState(null);
   const [dashboard, setDashboard] = useState(null);
-  const [sentimentData, setSentimentData] = useState(null);
+
   const [trends, setTrends] = useState(null);
   const [insights, setInsights] = useState(null);
-  const [alerts, setAlerts] = useState([]);
+
   const [isConnecting, setIsConnecting] = useState(false);
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [connectionFailed, setConnectionFailed] = useState(false);
 
   // Slack connection form state
   const [slackForm, setSlackForm] = useState({
@@ -54,13 +55,25 @@ function EmployeeEngagement() {
   const [connectionRetries, setConnectionRetries] = useState(0);
   const [maxRetries] = useState(3);
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(false);
-  const [isLoadingSentiment, setIsLoadingSentiment] = useState(false);
+
   const [isLoadingTrends, setIsLoadingTrends] = useState(false);
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
+  const [sentimentProgress, setSentimentProgress] = useState({
+    current: 0,
+    total: 0,
+    message: "",
+  });
 
   // Auto-reconnect logic
   const autoReconnect = async () => {
     if (connectionRetries >= maxRetries) {
+      setConnectionFailed(true);
+      setWorkspaces([]);
+      setSelectedWorkspace(null);
+      setDashboard(null);
+
+      setTrends(null);
+      setInsights(null);
       alert(
         "Failed to reconnect after multiple attempts. Please reconnect manually."
       );
@@ -169,6 +182,7 @@ function EmployeeEngagement() {
     }
 
     setIsConnecting(true);
+    setConnectionFailed(false);
     try {
       const channels = slackForm.channels.split(",").map((ch) => ch.trim());
       const response = await axios.post(
@@ -192,6 +206,7 @@ function EmployeeEngagement() {
       alert("Slack workspace connected successfully!");
     } catch (error) {
       console.error("Connection error:", error);
+      setConnectionFailed(true);
       alert("Failed to connect Slack workspace");
     } finally {
       setIsConnecting(false);
@@ -202,8 +217,34 @@ function EmployeeEngagement() {
     if (!workspaceId) return;
 
     setIsFetchingMessages(true);
+    setSentimentProgress({
+      current: 0,
+      total: 0,
+      message: "Starting message fetch...",
+    });
     let retryCount = 0;
     const maxRetries = 2;
+
+    // Start progress polling
+    const progressInterval = setInterval(async () => {
+      try {
+        const response = await axios.get(
+          `/api/employee-engagement/progress/${workspaceId}`
+        );
+        setSentimentProgress(response.data.progress);
+
+        // Check if sentiment analysis is complete
+        if (
+          response.data.progress?.message === "Sentiment analysis complete!"
+        ) {
+          clearInterval(progressInterval);
+          console.log("Sentiment analysis complete, refreshing all data...");
+          await refreshAllData(workspaceId);
+        }
+      } catch (error) {
+        console.error("Error fetching progress:", error);
+      }
+    }, 1000);
 
     const attemptFetch = async () => {
       try {
@@ -216,6 +257,12 @@ function EmployeeEngagement() {
           }
         );
 
+        setSentimentProgress({
+          current: 0,
+          total: 0,
+          message: "Messages fetched successfully!",
+        });
+
         alert(
           `Successfully fetched ${
             response.data.messageCount
@@ -223,9 +270,8 @@ function EmployeeEngagement() {
         );
 
         // Reload dashboard data with new messages
-        loadDashboard(workspaceId);
-        loadSentimentData(workspaceId);
-        loadTrends(workspaceId);
+        await loadDashboard(workspaceId);
+        await loadTrends(workspaceId);
         return true;
       } catch (error) {
         console.error(
@@ -257,7 +303,61 @@ function EmployeeEngagement() {
     };
 
     await attemptFetch();
+    clearInterval(progressInterval);
     setIsFetchingMessages(false);
+    setSentimentProgress({ current: 0, total: 0, message: "" });
+  };
+
+  // Function to validate data quality
+  const validateDataQuality = (data, dataType) => {
+    console.log(`=== ${dataType} Data Validation ===`);
+    console.log("Data:", data);
+
+    if (!data) {
+      console.warn(`${dataType}: No data available`);
+      return false;
+    }
+
+    if (dataType === "Sentiment Distribution") {
+      const { positive, neutral, negative } = data;
+      const total = (positive || 0) + (neutral || 0) + (negative || 0);
+      console.log(
+        `${dataType}: Positive=${positive}, Neutral=${neutral}, Negative=${negative}, Total=${total}`
+      );
+      return total > 0;
+    }
+
+    if (dataType === "Channel Data") {
+      console.log(`${dataType}: ${data.length} channels`);
+      data.forEach((channel, index) => {
+        console.log(
+          `  Channel ${index + 1}: ${channel.name} - ${
+            channel.messageCount
+          } messages, ${channel.threadReplyCount} replies`
+        );
+      });
+      return data.length > 0 && data.some((ch) => ch.messageCount > 0);
+    }
+
+    return true;
+  };
+
+  // Function to refresh all data after sentiment analysis
+  const refreshAllData = async (workspaceId) => {
+    console.log("Refreshing all data for workspace:", workspaceId);
+
+    // Clear existing data to force fresh load
+    setDashboard(null);
+    setTrends(null);
+    setInsights(null);
+
+    // Add a small delay to ensure state is cleared
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Load fresh data
+    await loadDashboard(workspaceId);
+    await loadTrends(workspaceId);
+    console.log("All data refreshed successfully");
   };
 
   const loadDashboard = async (workspaceId) => {
@@ -268,27 +368,39 @@ function EmployeeEngagement() {
       const response = await axios.get(
         `/api/employee-engagement/dashboard/${workspaceId}`
       );
+
+      console.log("Dashboard response:", response.data);
+      console.log("Dashboard data:", response.data.dashboard);
+      console.log(
+        "Sentiment distribution:",
+        response.data.dashboard?.sentimentDistribution
+      );
+      console.log("Top channels:", response.data.dashboard?.topChannels);
+
       setDashboard(response.data.dashboard);
+
+      // Also try to load saved sentiment data for more detailed analysis
+      try {
+        const sentimentResponse = await axios.get(
+          `/api/employee-engagement/sentiment-data/${workspaceId}`
+        );
+        if (sentimentResponse.data.success) {
+          // Merge sentiment data with dashboard data
+          setDashboard((prev) => ({
+            ...prev,
+            detailedSentiment: sentimentResponse.data.data,
+          }));
+        }
+      } catch (sentimentError) {
+        console.log(
+          "No saved sentiment data available:",
+          sentimentError.message
+        );
+      }
     } catch (error) {
       console.error("Error loading dashboard:", error);
     } finally {
       setIsLoadingDashboard(false);
-    }
-  };
-
-  const loadSentimentData = async (workspaceId) => {
-    if (!workspaceId) return;
-
-    setIsLoadingSentiment(true);
-    try {
-      const response = await axios.get(
-        `/api/employee-engagement/sentiment/${workspaceId}`
-      );
-      setSentimentData(response.data.sentimentData);
-    } catch (error) {
-      console.error("Error loading sentiment data:", error);
-    } finally {
-      setIsLoadingSentiment(false);
     }
   };
 
@@ -330,25 +442,10 @@ function EmployeeEngagement() {
     }
   };
 
-  const loadAlerts = async (workspaceId) => {
-    if (!workspaceId) return;
-
-    try {
-      const response = await axios.get(
-        `/api/employee-engagement/alerts/${workspaceId}`
-      );
-      setAlerts(response.data.alerts);
-    } catch (error) {
-      console.error("Error loading alerts:", error);
-    }
-  };
-
   useEffect(() => {
     if (selectedWorkspace) {
       loadDashboard(selectedWorkspace.id);
-      loadSentimentData(selectedWorkspace.id);
       loadTrends(selectedWorkspace.id);
-      loadAlerts(selectedWorkspace.id);
     }
   }, [selectedWorkspace]);
 
@@ -358,33 +455,62 @@ function EmployeeEngagement() {
     return "#F44336";
   };
 
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case "high":
-        return "#F44336";
-      case "medium":
-        return "#FF9800";
-      case "low":
-        return "#4CAF50";
-      default:
-        return "#757575";
-    }
-  };
-
   // Chart configurations
   const getSentimentDistributionData = () => {
-    // Use real data if available, otherwise use mock data for demonstration
-    const data = sentimentData || {
-      positive: 45,
-      neutral: 35,
-      negative: 20,
-    };
+    console.log("Dashboard data for sentiment chart:", dashboard);
+
+    // Validate sentiment distribution data
+    const isValidData = validateDataQuality(
+      dashboard?.sentimentDistribution,
+      "Sentiment Distribution"
+    );
+
+    // Use real sentiment data from saved analysis
+    if (!dashboard || !dashboard.sentimentDistribution) {
+      console.log("No sentiment distribution data available");
+      return {
+        labels: ["Positive", "Neutral", "Negative"],
+        datasets: [
+          {
+            data: [0, 0, 0], // No data available
+            backgroundColor: ["#4CAF50", "#FF9800", "#F44336"],
+            borderColor: ["#45a049", "#e68900", "#d32f2f"],
+            borderWidth: 2,
+          },
+        ],
+      };
+    }
+
+    // Even if validation fails, try to show the data if it exists
+    if (!isValidData) {
+      console.log("Data validation failed, but showing available data");
+    }
+
+    // Use real sentiment distribution data
+    const { positive, neutral, negative } = dashboard.sentimentDistribution;
+    console.log("Sentiment distribution:", { positive, neutral, negative });
+
+    // Ensure we have valid numbers
+    const pos = positive || 0;
+    const neu = neutral || 0;
+    const neg = negative || 0;
+
+    const total = pos + neu + neg;
+    console.log("Total messages for sentiment:", total);
+
+    // Ensure all values are valid numbers
+    const chartData = [pos, neu, neg].map((val) => {
+      const num = Number(val);
+      return isNaN(num) ? 0 : num;
+    });
+
+    console.log("Final chart data:", chartData);
 
     return {
       labels: ["Positive", "Neutral", "Negative"],
       datasets: [
         {
-          data: [data.positive || 45, data.neutral || 35, data.negative || 20],
+          data: chartData,
           backgroundColor: ["#4CAF50", "#FF9800", "#F44336"],
           borderColor: ["#45a049", "#e68900", "#d32f2f"],
           borderWidth: 2,
@@ -394,19 +520,25 @@ function EmployeeEngagement() {
   };
 
   const getWeeklyTrendsData = () => {
-    // Use real data if available, otherwise use mock data for demonstration
-    const data = trends || {
-      Monday: 0.75,
-      Tuesday: 0.68,
-      Wednesday: 0.82,
-      Thursday: 0.71,
-      Friday: 0.89,
-      Saturday: 0.65,
-      Sunday: 0.58,
-    };
+    // Only use real data, no mock data
+    if (!trends?.weeklyTrends) {
+      return {
+        labels: [],
+        datasets: [
+          {
+            label: "Sentiment Score",
+            data: [],
+            borderColor: "#007bff",
+            backgroundColor: "rgba(0, 123, 255, 0.1)",
+            fill: true,
+            tension: 0.4,
+          },
+        ],
+      };
+    }
 
-    const days = Object.keys(data);
-    const sentimentValues = Object.values(data);
+    const days = Object.keys(trends.weeklyTrends);
+    const sentimentValues = Object.values(trends.weeklyTrends);
 
     return {
       labels: days,
@@ -424,53 +556,76 @@ function EmployeeEngagement() {
   };
 
   const getChannelComparisonData = () => {
-    // Use real data if available, otherwise use mock data for demonstration
-    const channels = dashboard?.topChannels || [
-      {
-        name: "general",
-        sentiment: 0.75,
-        messageCount: 1250,
-        threadCount: 45,
-        threadReplyCount: 180,
-      },
-      {
-        name: "engineering",
-        sentiment: 0.68,
-        messageCount: 890,
-        threadCount: 32,
-        threadReplyCount: 120,
-      },
-      {
-        name: "random",
-        sentiment: 0.82,
-        messageCount: 650,
-        threadCount: 28,
-        threadReplyCount: 95,
-      },
-      {
-        name: "marketing",
-        sentiment: 0.71,
-        messageCount: 420,
-        threadCount: 15,
-        threadReplyCount: 60,
-      },
-      {
-        name: "design",
-        sentiment: 0.89,
-        messageCount: 380,
-        threadCount: 12,
-        threadReplyCount: 45,
-      },
-    ];
+    console.log("Channel comparison data - dashboard:", dashboard);
+    console.log(
+      "Channel comparison data - topChannels:",
+      dashboard?.topChannels
+    );
+
+    // Validate channel data
+    const isValidData = validateDataQuality(
+      dashboard?.topChannels,
+      "Channel Data"
+    );
+
+    // Debug channel data if available
+    if (dashboard?.topChannels && dashboard.topChannels.length > 0) {
+      console.log("Channel data for chart:");
+      dashboard.topChannels.forEach((ch, index) => {
+        const mainMessages = ch.messageCount - (ch.threadReplyCount || 0);
+        console.log(`  Channel ${index + 1}: ${ch.name}`);
+        console.log(`    - Total messages: ${ch.messageCount}`);
+        console.log(`    - Thread replies: ${ch.threadReplyCount || 0}`);
+        console.log(`    - Main messages: ${mainMessages}`);
+      });
+    }
+
+    // Only use real data, no mock data
+    if (
+      !dashboard?.topChannels ||
+      dashboard.topChannels.length === 0 ||
+      !isValidData
+    ) {
+      console.log("No valid channel data available");
+      return {
+        labels: [],
+        datasets: [
+          {
+            label: "Total Messages",
+            data: [],
+            backgroundColor: "rgba(0, 123, 255, 0.7)",
+            borderColor: "#007bff",
+            borderWidth: 1,
+            yAxisID: "y",
+          },
+          {
+            label: "Main Messages",
+            data: [],
+            backgroundColor: "rgba(40, 167, 69, 0.7)",
+            borderColor: "#28a745",
+            borderWidth: 1,
+            yAxisID: "y",
+          },
+          {
+            label: "Thread Replies",
+            data: [],
+            backgroundColor: "rgba(255, 193, 7, 0.7)",
+            borderColor: "#ffc107",
+            borderWidth: 1,
+            yAxisID: "y",
+          },
+        ],
+      };
+    }
+
+    const channels = dashboard.topChannels;
 
     return {
       labels: channels.map((ch) => ch.name),
       datasets: [
         {
           label: "Total Messages",
-          data: channels.map(
-            (ch) => ch.messageCount + (ch.threadReplyCount || 0)
-          ),
+          data: channels.map((ch) => ch.messageCount),
           backgroundColor: "rgba(0, 123, 255, 0.7)",
           borderColor: "#007bff",
           borderWidth: 1,
@@ -478,7 +633,9 @@ function EmployeeEngagement() {
         },
         {
           label: "Main Messages",
-          data: channels.map((ch) => ch.messageCount),
+          data: channels.map(
+            (ch) => ch.messageCount - (ch.threadReplyCount || 0)
+          ),
           backgroundColor: "rgba(40, 167, 69, 0.7)",
           borderColor: "#28a745",
           borderWidth: 1,
@@ -496,49 +653,40 @@ function EmployeeEngagement() {
     };
   };
 
-  const getEmojiSentimentData = () => {
-    // Mock data for emoji sentiment analysis
-    const emojiData = {
-      "😊": 85,
-      "👍": 80,
-      "🎉": 90,
-      "😔": 25,
-      "😤": 30,
-      "💪": 75,
-      "🔥": 85,
-      "😴": 40,
-    };
-
-    return {
-      labels: Object.keys(emojiData),
-      datasets: [
-        {
-          label: "Sentiment Score",
-          data: Object.values(emojiData),
-          backgroundColor: Object.values(emojiData).map((v) =>
-            v >= 70 ? "#4CAF50" : v >= 50 ? "#FF9800" : "#F44336"
-          ),
-          borderColor: Object.values(emojiData).map((v) =>
-            v >= 70 ? "#45a049" : v >= 50 ? "#e68900" : "#d32f2f"
-          ),
-          borderWidth: 1,
-        },
-      ],
-    };
-  };
-
   const getTeamEngagementRadarData = () => {
-    // Use real data if available, otherwise use mock data for demonstration
-    const metrics = insights?.metrics || {
-      teamHappiness: 0.75,
-      engagementRate: 0.68,
-      stressLevel: 0.25,
-    };
+    // Only use real data, no mock data
+    if (!insights?.metrics) {
+      return {
+        labels: [
+          "Team Happiness",
+          // "Engagement Rate",
+          "Collaboration",
+          "Innovation",
+          "Stress Level",
+          "Work-Life Balance",
+        ],
+        datasets: [
+          {
+            label: "Current Week",
+            data: [0, 0, 0, 0, 0, 0],
+            backgroundColor: "rgba(0, 123, 255, 0.2)",
+            borderColor: "#007bff",
+            borderWidth: 2,
+            pointBackgroundColor: "#007bff",
+            pointBorderColor: "#fff",
+            pointHoverBackgroundColor: "#fff",
+            pointHoverBorderColor: "#007bff",
+          },
+        ],
+      };
+    }
+
+    const metrics = insights.metrics;
 
     return {
       labels: [
         "Team Happiness",
-        "Engagement Rate",
+        // "Engagement Rate",
         "Collaboration",
         "Innovation",
         "Stress Level",
@@ -568,39 +716,30 @@ function EmployeeEngagement() {
   };
 
   const getThreadEngagementData = () => {
-    // Use real data if available, otherwise use mock data for demonstration
-    const channels = dashboard?.topChannels || [
-      {
-        name: "general",
-        threadCount: 45,
-        threadReplyCount: 180,
-        avgReplies: 4.0,
-      },
-      {
-        name: "engineering",
-        threadCount: 32,
-        threadReplyCount: 120,
-        avgReplies: 3.8,
-      },
-      {
-        name: "random",
-        threadCount: 28,
-        threadReplyCount: 95,
-        avgReplies: 3.4,
-      },
-      {
-        name: "marketing",
-        threadCount: 15,
-        threadReplyCount: 60,
-        avgReplies: 4.0,
-      },
-      {
-        name: "design",
-        threadCount: 12,
-        threadReplyCount: 45,
-        avgReplies: 3.8,
-      },
-    ];
+    // Only use real data, no mock data
+    if (!dashboard?.topChannels || dashboard.topChannels.length === 0) {
+      return {
+        labels: [],
+        datasets: [
+          {
+            label: "Thread Count",
+            data: [],
+            backgroundColor: "rgba(255, 193, 7, 0.7)",
+            borderColor: "#ffc107",
+            borderWidth: 1,
+          },
+          {
+            label: "Avg Replies per Thread",
+            data: [],
+            backgroundColor: "rgba(220, 53, 69, 0.7)",
+            borderColor: "#dc3545",
+            borderWidth: 1,
+          },
+        ],
+      };
+    }
+
+    const channels = dashboard.topChannels;
 
     return {
       labels: channels.map((ch) => ch.name),
@@ -695,9 +834,20 @@ function EmployeeEngagement() {
       <div className="workspace-section">
         <h2>Slack Workspaces</h2>
 
-        {workspaces.length === 0 ? (
+        {workspaces.length === 0 || connectionFailed ? (
           <div className="connect-slack">
-            <h3>Connect Your First Slack Workspace</h3>
+            <h3>
+              {connectionFailed
+                ? "Reconnect Slack Workspace"
+                : "Connect Your First Slack Workspace"}
+            </h3>
+            {connectionFailed && (
+              <div className="connection-error">
+                <p>
+                  Previous connection failed. Please reconnect your workspace.
+                </p>
+              </div>
+            )}
             <form onSubmit={handleSlackConnect} className="slack-form">
               <div className="form-group">
                 <label>Workspace Name:</label>
@@ -756,19 +906,51 @@ function EmployeeEngagement() {
               ))}
             </select>
             {selectedWorkspace && (
-              <button
-                onClick={() => fetchMessages(selectedWorkspace.id)}
-                disabled={isFetchingMessages}
-                className="fetch-messages-btn"
-              >
-                {isFetchingMessages
-                  ? `Fetching Messages${
-                      connectionRetries > 0
-                        ? ` (Retry ${connectionRetries}/${maxRetries})`
-                        : ""
-                    }...`
-                  : "Fetch Messages"}
-              </button>
+              <div className="fetch-messages-section">
+                <div className="fetch-buttons">
+                  <button
+                    onClick={() => fetchMessages(selectedWorkspace.id)}
+                    disabled={isFetchingMessages}
+                    className="fetch-messages-btn"
+                  >
+                    {isFetchingMessages
+                      ? `Fetching Messages${
+                          connectionRetries > 0
+                            ? ` (Retry ${connectionRetries}/${maxRetries})`
+                            : ""
+                        }...`
+                      : "Fetch Messages"}
+                  </button>
+                  <button
+                    onClick={() => refreshAllData(selectedWorkspace.id)}
+                    disabled={isLoadingDashboard || isLoadingTrends}
+                    className="refresh-data-btn"
+                  >
+                    {isLoadingDashboard || isLoadingTrends
+                      ? "Refreshing..."
+                      : "Refresh Data"}
+                  </button>
+                </div>
+                {sentimentProgress.message && (
+                  <div className="sentiment-progress">
+                    <p>{sentimentProgress.message}</p>
+                    {sentimentProgress.total > 0 && (
+                      <div className="progress-bar">
+                        <div
+                          className="progress-fill"
+                          style={{
+                            width: `${
+                              (sentimentProgress.current /
+                                sentimentProgress.total) *
+                              100
+                            }%`,
+                          }}
+                        ></div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -783,12 +965,7 @@ function EmployeeEngagement() {
             >
               Overview
             </button>
-            <button
-              className={`tab-btn ${activeTab === "sentiment" ? "active" : ""}`}
-              onClick={() => setActiveTab("sentiment")}
-            >
-              Sentiment Analysis
-            </button>
+
             <button
               className={`tab-btn ${activeTab === "trends" ? "active" : ""}`}
               onClick={() => setActiveTab("trends")}
@@ -801,17 +978,27 @@ function EmployeeEngagement() {
             >
               Manager Insights
             </button>
-            <button
-              className={`tab-btn ${activeTab === "alerts" ? "active" : ""}`}
-              onClick={() => setActiveTab("alerts")}
-            >
-              Alerts
-            </button>
           </div>
 
           {activeTab === "overview" && (
             <div className="dashboard-section">
               <h2>Weekly Sentiment Dashboard</h2>
+
+              {/* Data Status Indicator */}
+              <div className="data-status">
+                <div
+                  className={`status-indicator ${
+                    dashboard?.messageCount > 0 ? "has-data" : "no-data"
+                  }`}
+                >
+                  <span className="status-dot"></span>
+                  <span className="status-text">
+                    {dashboard?.messageCount > 0
+                      ? `Real data available (${dashboard.messageCount} messages)`
+                      : "No data available - Fetch messages to see real statistics"}
+                  </span>
+                </div>
+              </div>
               <div className="dashboard-grid">
                 <div className="metric-card">
                   <h3>Overall Sentiment</h3>
@@ -819,16 +1006,16 @@ function EmployeeEngagement() {
                     className="metric-value"
                     style={{
                       color: getSentimentColor(
-                        dashboard?.overallSentiment || 0.75
+                        dashboard?.overallSentiment || 0
                       ),
                     }}
                   >
                     {isLoadingDashboard
                       ? "Loading..."
-                      : ((dashboard?.overallSentiment || 0.75) * 100).toFixed(
-                          1
-                        )}
-                    %
+                      : dashboard?.overallSentiment
+                      ? (dashboard.overallSentiment * 100).toFixed(1)
+                      : "No data"}
+                    {dashboard?.overallSentiment ? "%" : ""}
                   </div>
                 </div>
                 <div className="metric-card">
@@ -836,7 +1023,9 @@ function EmployeeEngagement() {
                   <div className="metric-value">
                     {isLoadingDashboard
                       ? "Loading..."
-                      : (dashboard?.messageCount || 3590).toLocaleString()}
+                      : dashboard?.messageCount
+                      ? dashboard.messageCount.toLocaleString()
+                      : "No data"}
                   </div>
                   <div className="metric-subtitle">
                     {dashboard?.threadStats?.threadReplyCount
@@ -844,7 +1033,9 @@ function EmployeeEngagement() {
                           dashboard?.messageCount -
                           dashboard?.threadStats?.threadReplyCount
                         ).toLocaleString()} main + ${dashboard?.threadStats?.threadReplyCount.toLocaleString()} replies)`
-                      : "All messages"}
+                      : dashboard?.messageCount
+                      ? "All messages"
+                      : ""}
                   </div>
                 </div>
                 <div className="metric-card">
@@ -852,10 +1043,12 @@ function EmployeeEngagement() {
                   <div className="metric-value">
                     {isLoadingDashboard
                       ? "Loading..."
-                      : (
-                          dashboard?.messageCount -
+                      : dashboard?.messageCount
+                      ? (
+                          dashboard.messageCount -
                           (dashboard?.threadStats?.threadReplyCount || 0)
-                        ).toLocaleString()}
+                        ).toLocaleString()
+                      : "No data"}
                   </div>
                 </div>
                 <div className="metric-card">
@@ -863,9 +1056,9 @@ function EmployeeEngagement() {
                   <div className="metric-value">
                     {isLoadingDashboard
                       ? "Loading..."
-                      : (
-                          dashboard?.threadStats?.threadReplyCount || 0
-                        ).toLocaleString()}
+                      : dashboard?.threadStats?.threadReplyCount
+                      ? dashboard.threadStats.threadReplyCount.toLocaleString()
+                      : "No data"}
                   </div>
                 </div>
                 <div className="metric-card">
@@ -873,28 +1066,33 @@ function EmployeeEngagement() {
                   <div className="metric-value">
                     {isLoadingDashboard
                       ? "Loading..."
-                      : dashboard?.activeUsers || 45}
+                      : dashboard?.activeUsers
+                      ? dashboard.activeUsers
+                      : "No data"}
                   </div>
                 </div>
-                <div className="metric-card">
+                {/* <div className="metric-card">
                   <h3>Engagement Rate</h3>
                   <div className="metric-value">
                     {isLoadingDashboard
                       ? "Loading..."
-                      : (
-                          ((dashboard?.activeUsers || 45) /
-                            (dashboard?.totalUsers || 60)) *
+                      : dashboard?.activeUsers && dashboard?.totalUsers
+                      ? (
+                          (dashboard.activeUsers / dashboard.totalUsers) *
                           100
-                        ).toFixed(1)}
-                    %
+                        ).toFixed(1)
+                      : "No data"}
+                    {dashboard?.activeUsers && dashboard?.totalUsers ? "%" : ""}
                   </div>
-                </div>
+                </div> */}
                 <div className="metric-card">
                   <h3>Thread Count</h3>
                   <div className="metric-value">
                     {isLoadingDashboard
                       ? "Loading..."
-                      : dashboard?.threadStats?.threadCount || 0}
+                      : dashboard?.threadStats?.threadCount
+                      ? dashboard.threadStats.threadCount
+                      : "No data"}
                   </div>
                 </div>
                 <div className="metric-card">
@@ -902,7 +1100,9 @@ function EmployeeEngagement() {
                   <div className="metric-value">
                     {isLoadingDashboard
                       ? "Loading..."
-                      : dashboard?.threadStats?.avgRepliesPerThread || 0}
+                      : dashboard?.threadStats?.avgRepliesPerThread
+                      ? dashboard.threadStats.avgRepliesPerThread
+                      : "No data"}
                   </div>
                 </div>
                 <div className="metric-card">
@@ -910,7 +1110,9 @@ function EmployeeEngagement() {
                   <div className="metric-value">
                     {isLoadingDashboard
                       ? "Loading..."
-                      : `${dashboard?.threadStats?.threadEngagement || 0}%`}
+                      : dashboard?.threadStats?.threadEngagement
+                      ? `${dashboard.threadStats.threadEngagement}%`
+                      : "No data"}
                   </div>
                 </div>
               </div>
@@ -919,10 +1121,10 @@ function EmployeeEngagement() {
                 <div className="chart-container">
                   <h3>Sentiment Distribution</h3>
                   <div className="chart-wrapper">
-                    {isLoadingSentiment ? (
+                    {isLoadingDashboard ? (
                       <div className="chart-loading">
                         <div className="loading-spinner"></div>
-                        <p>Analyzing sentiment...</p>
+                        <p>Loading sentiment data...</p>
                       </div>
                     ) : (
                       <Pie
@@ -953,41 +1155,6 @@ function EmployeeEngagement() {
             </div>
           )}
 
-          {activeTab === "sentiment" && (
-            <div className="dashboard-section">
-              <h2>Detailed Sentiment Analysis</h2>
-
-              <div className="charts-grid">
-                <div className="chart-container">
-                  <h3>Sentiment Distribution (Pie Chart)</h3>
-                  <div className="chart-wrapper">
-                    <Pie
-                      data={getSentimentDistributionData()}
-                      options={chartOptions}
-                    />
-                  </div>
-                </div>
-
-                <div className="chart-container">
-                  <h3>Sentiment Distribution (Doughnut)</h3>
-                  <div className="chart-wrapper">
-                    <Doughnut
-                      data={getSentimentDistributionData()}
-                      options={chartOptions}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="chart-container full-width">
-                <h3>Emoji Sentiment Analysis</h3>
-                <div className="chart-wrapper">
-                  <Bar data={getEmojiSentimentData()} options={chartOptions} />
-                </div>
-              </div>
-            </div>
-          )}
-
           {activeTab === "trends" && (
             <div className="dashboard-section">
               <h2>Trends & Patterns</h2>
@@ -1008,6 +1175,188 @@ function EmployeeEngagement() {
                   )}
                 </div>
               </div>
+
+              {trends?.burnoutWarnings && trends.burnoutWarnings.length > 0 && (
+                <div className="burnout-warnings-section">
+                  <h3>Burnout Warnings</h3>
+                  <div className="warnings-grid">
+                    {trends.burnoutWarnings.map((warning, index) => (
+                      <div
+                        key={index}
+                        className={`warning-card ${warning.severity}`}
+                      >
+                        <div className="warning-header">
+                          <span className="severity-badge">
+                            {warning.severity}
+                          </span>
+                          <span className="warning-type">
+                            User: {warning.userId}
+                          </span>
+                        </div>
+                        <p className="warning-message">{warning.warning}</p>
+                        <div className="warning-details">
+                          <span>
+                            Negative messages: {warning.negativeCount}
+                          </span>
+                          {warning.recentMessages && (
+                            <div className="recent-messages">
+                              <strong>Recent messages:</strong>
+                              {warning.recentMessages.map((msg, i) => (
+                                <div key={i} className="message-preview">
+                                  "{msg.text.substring(0, 100)}..."
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {trends?.summary && (
+                <div className="trends-summary">
+                  <h3>Trends Summary</h3>
+                  <div className="summary-grid">
+                    <div className="summary-item">
+                      <span className="label">Total Messages:</span>
+                      <span className="value">
+                        {trends.summary.totalMessages}
+                      </span>
+                    </div>
+                    <div className="summary-item">
+                      <span className="label">Average Sentiment:</span>
+                      <span className="value">
+                        {(trends.summary.averageSentiment * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="summary-item">
+                      <span className="label">Users with Warnings:</span>
+                      <span className="value">
+                        {trends.summary.usersWithWarnings}
+                      </span>
+                    </div>
+                    <div className="summary-item">
+                      <span className="label">Trend Direction:</span>
+                      <span
+                        className={`value ${trends.summary.trendDirection}`}
+                      >
+                        {trends.summary.trendDirection}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {trends?.aiAnalysis && (
+                <div className="ai-analysis-section">
+                  <h3>AI-Powered Trend Analysis</h3>
+
+                  {trends.aiAnalysis.trendSummary && (
+                    <div className="analysis-card">
+                      <h4>Trend Summary</h4>
+                      <p>{trends.aiAnalysis.trendSummary}</p>
+                    </div>
+                  )}
+
+                  {trends.aiAnalysis.patternAnalysis && (
+                    <div className="analysis-card">
+                      <h4>Pattern Analysis</h4>
+                      <p>{trends.aiAnalysis.patternAnalysis}</p>
+                    </div>
+                  )}
+
+                  {trends.aiAnalysis.predictions &&
+                    trends.aiAnalysis.predictions.length > 0 && (
+                      <div className="analysis-card">
+                        <h4>Predictions</h4>
+                        <div className="predictions-list">
+                          {trends.aiAnalysis.predictions.map(
+                            (prediction, index) => (
+                              <div key={index} className="prediction-item">
+                                <div className="prediction-header">
+                                  <span className="prediction-type">
+                                    {prediction.type}
+                                  </span>
+                                  <span
+                                    className={`confidence ${prediction.confidence}`}
+                                  >
+                                    {prediction.confidence} confidence
+                                  </span>
+                                </div>
+                                <p className="prediction-text">
+                                  {prediction.prediction}
+                                </p>
+                                <span className="timeframe">
+                                  {prediction.timeframe}
+                                </span>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                  {trends.aiAnalysis.riskFactors &&
+                    trends.aiAnalysis.riskFactors.length > 0 && (
+                      <div className="analysis-card">
+                        <h4>Risk Factors</h4>
+                        <div className="risk-factors-list">
+                          {trends.aiAnalysis.riskFactors.map((risk, index) => (
+                            <div
+                              key={index}
+                              className={`risk-item ${risk.impact}`}
+                            >
+                              <div className="risk-header">
+                                <span className="risk-factor">
+                                  {risk.factor}
+                                </span>
+                                <span className={`impact ${risk.impact}`}>
+                                  {risk.impact} impact
+                                </span>
+                              </div>
+                              <p className="mitigation">{risk.mitigation}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  {trends.aiAnalysis.opportunities &&
+                    trends.aiAnalysis.opportunities.length > 0 && (
+                      <div className="analysis-card">
+                        <h4>Opportunities</h4>
+                        <div className="opportunities-list">
+                          {trends.aiAnalysis.opportunities.map((opp, index) => (
+                            <div key={index} className="opportunity-item">
+                              <p className="opportunity-text">
+                                {opp.opportunity}
+                              </p>
+                              <p className="action-text">{opp.action}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  {trends.aiAnalysis.weeklyInsights && (
+                    <div className="analysis-card">
+                      <h4>Weekly Insights</h4>
+                      <div className="weekly-insights-grid">
+                        {Object.entries(trends.aiAnalysis.weeklyInsights).map(
+                          ([day, insight]) => (
+                            <div key={day} className="day-insight">
+                              <h5>{day}</h5>
+                              <p>{insight}</p>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="chart-container full-width">
                 <h3>Thread Engagement by Channel</h3>
@@ -1066,52 +1415,52 @@ function EmployeeEngagement() {
                         className="value"
                         style={{
                           color: getSentimentColor(
-                            insights?.metrics?.teamHappiness || 0.75
+                            insights?.metrics?.teamHappiness || 0
                           ),
                         }}
                       >
                         {isLoadingInsights
                           ? "Loading..."
-                          : (
-                              (insights?.metrics?.teamHappiness || 0.75) * 100
-                            ).toFixed(0)}
-                        %
+                          : insights?.metrics?.teamHappiness
+                          ? (insights.metrics.teamHappiness * 100).toFixed(0)
+                          : "No data"}
+                        {insights?.metrics?.teamHappiness ? "%" : ""}
                       </span>
                     </div>
-                    <div className="metric">
+                    {/* <div className="metric">
                       <span className="label">Engagement Rate:</span>
                       <span
                         className="value"
                         style={{
                           color: getSentimentColor(
-                            insights?.metrics?.engagementRate || 0.68
+                            insights?.metrics?.engagementRate || 0
                           ),
                         }}
                       >
                         {isLoadingInsights
                           ? "Loading..."
-                          : (
-                              (insights?.metrics?.engagementRate || 0.68) * 100
-                            ).toFixed(0)}
-                        %
+                          : insights?.metrics?.engagementRate
+                          ? (insights.metrics.engagementRate * 100).toFixed(0)
+                          : "No data"}
+                        {insights?.metrics?.engagementRate ? "%" : ""}
                       </span>
-                    </div>
+                    </div> */}
                     <div className="metric">
                       <span className="label">Stress Level:</span>
                       <span
                         className="value"
                         style={{
                           color: getSentimentColor(
-                            1 - (insights?.metrics?.stressLevel || 0.25)
+                            1 - (insights?.metrics?.stressLevel || 0)
                           ),
                         }}
                       >
                         {isLoadingInsights
                           ? "Loading..."
-                          : (
-                              (insights?.metrics?.stressLevel || 0.25) * 100
-                            ).toFixed(0)}
-                        %
+                          : insights?.metrics?.stressLevel
+                          ? (insights.metrics.stressLevel * 100).toFixed(0)
+                          : "No data"}
+                        {insights?.metrics?.stressLevel ? "%" : ""}
                       </span>
                     </div>
                   </div>
@@ -1126,39 +1475,19 @@ function EmployeeEngagement() {
                     </div>
                   ) : (
                     <>
-                      {(
-                        insights?.recommendations || [
-                          {
-                            title: "Improve Team Communication",
-                            priority: "medium",
-                            description:
-                              "Team sentiment shows room for improvement in communication patterns.",
-                            actionItems: [
-                              "Schedule weekly team check-ins",
-                              "Encourage more positive feedback",
-                              "Create dedicated channels for different topics",
-                            ],
-                          },
-                          {
-                            title: "Address Burnout Warning",
-                            priority: "high",
-                            description:
-                              "Several team members show signs of stress and potential burnout.",
-                            actionItems: [
-                              "Review workload distribution",
-                              "Implement flexible work hours",
-                              "Schedule one-on-one meetings with affected team members",
-                            ],
-                          },
-                        ]
-                      ).map((rec, index) => (
+                      {(insights?.recommendations || []).map((rec, index) => (
                         <div key={index} className="recommendation-card">
                           <div className="rec-header">
                             <h4>{rec.title}</h4>
                             <span
                               className="priority"
                               style={{
-                                backgroundColor: getSeverityColor(rec.priority),
+                                backgroundColor:
+                                  rec.priority === "high"
+                                    ? "#F44336"
+                                    : rec.priority === "medium"
+                                    ? "#FF9800"
+                                    : "#4CAF50",
                               }}
                             >
                               {rec.priority}
@@ -1178,41 +1507,28 @@ function EmployeeEngagement() {
                     </>
                   )}
                 </div>
-              </div>
-            </div>
-          )}
 
-          {activeTab === "alerts" && (
-            <div className="alerts-section">
-              <h2>Active Alerts</h2>
-              {alerts.length > 0 ? (
-                <div className="alerts-list">
-                  {alerts.map((alert) => (
-                    <div key={alert.id} className="alert-card">
-                      <div className="alert-header">
-                        <span
-                          className="severity"
-                          style={{
-                            backgroundColor: getSeverityColor(alert.severity),
-                          }}
-                        >
-                          {alert.severity}
-                        </span>
-                        <span className="type">{alert.type}</span>
-                        <span className="timestamp">
-                          {new Date(alert.timestamp).toLocaleString()}
-                        </span>
-                      </div>
-                      <p className="alert-message">{alert.message}</p>
-                      {alert.username && (
-                        <p className="alert-user">User: {alert.username}</p>
-                      )}
+                {insights?.keyInsights && insights.keyInsights.length > 0 && (
+                  <div className="key-insights">
+                    <h3>Key Insights</h3>
+                    <div className="insights-list">
+                      {insights.keyInsights.map((insight, index) => (
+                        <div key={index} className="insight-item">
+                          <span className="insight-bullet">•</span>
+                          <span className="insight-text">{insight}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p>No active alerts at this time.</p>
-              )}
+                  </div>
+                )}
+
+                {insights?.trendAnalysis && (
+                  <div className="trend-analysis">
+                    <h3>Trend Analysis</h3>
+                    <p className="analysis-text">{insights.trendAnalysis}</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

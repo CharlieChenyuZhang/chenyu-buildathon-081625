@@ -1,0 +1,28 @@
+SPEAKER NOTES
+Generated on: 8/16/2025
+Total Slides: 6
+
+SLIDE 1: Introduction
+Content: Welcome to the Build as a Startup School session. Today, I'll share lessons learned from building startups at AI Fund, a venture studio creating around one startup per month.
+Notes: Introduce AI Fund, its mission, and my background. Explain the goal of sharing practical startup-building insights.
+
+SLIDE 2: Speed as a Success Factor
+Content: A critical predictor of startup success is execution speed. New AI technologies enable faster operations, making early adoption crucial for increased success odds.
+Notes: Emphasize the importance of speed and how AI contributes. Cite examples of fast execution leading to success.
+
+SLIDE 3: Identifying Opportunities in the AI Stack
+Content: The biggest opportunities often exist at the application layer of the AI stack, despite media focus on semiconductors, clouds, and AI foundation models.
+Notes: Illustrate why applications provide more opportunities. Encourage looking beyond media hype to find real potential.
+
+SLIDE 4: Exploring the AI Technology Landscape
+Content: The rise of 'agentic AI' is a major trend, offering new startup opportunities. It transforms AI use from simple prompts to more complex interactions.
+Notes: Explain 'agentic AI' and its implications. Discuss how understanding this trend can open new avenues for startups.
+
+SLIDE 5: Practical Recommendations
+Content: Stay updated on AI trends every 2-3 months. Leverage agentic AI for developing innovative applications that drive revenue and support the AI stack.
+Notes: Share tips on keeping pace with AI changes. Offer guidance on application development in the AI ecosystem.
+
+SLIDE 6: Conclusion and Q&A
+Content: Wrapping up key points: Speed in execution, application layer opportunities, and understanding agentic AI. Open the floor for questions.
+Notes: Summarize session highlights. Encourage audience questions and engagement.
+

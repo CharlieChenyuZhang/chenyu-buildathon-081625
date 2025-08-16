@@ -2,9 +2,20 @@ const express = require("express");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
 const fs = require("fs");
+const simpleGit = require("simple-git");
+const OpenAI = require("openai");
 const { analyzeCodeChanges } = require("../utils/openai");
 
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
 const router = express.Router();
+
+// Storage for analyses (in production, use a database)
+const analyses = new Map();
+const analysisResults = new Map();
 
 // POST /api/codebase-time-machine/analyze-repo
 // Clone and analyze a repository
@@ -16,14 +27,14 @@ router.post("/analyze-repo", async (req, res) => {
       return res.status(400).json({ error: "Repository URL is required" });
     }
 
-    // TODO: Implement repository analysis
-    // - Clone repository
-    // - Analyze git history
-    // - Extract commit patterns
-    // - Build semantic understanding
+    // Validate repository URL
+    if (!repoUrl.includes("github.com") && !repoUrl.includes("gitlab.com") && !repoUrl.includes("bitbucket.org")) {
+      return res.status(400).json({ error: "Please provide a valid GitHub, GitLab, or Bitbucket repository URL" });
+    }
 
+    const analysisId = uuidv4();
     const analysis = {
-      id: uuidv4(),
+      id: analysisId,
       repoUrl: repoUrl,
       branch: branch,
       status: "processing",
@@ -39,6 +50,11 @@ router.post("/analyze-repo", async (req, res) => {
       },
     };
 
+    analyses.set(analysisId, analysis);
+
+    // Start analysis in background
+    performRepositoryAnalysis(analysisId, repoUrl, branch);
+
     res.json({
       message: "Repository analysis started",
       analysis: analysis,
@@ -49,35 +65,607 @@ router.post("/analyze-repo", async (req, res) => {
   }
 });
 
+// Background function to perform repository analysis
+async function performRepositoryAnalysis(analysisId, repoUrl, branch) {
+  const analysis = analyses.get(analysisId);
+  const tempDir = path.join(__dirname, "../temp", analysisId);
+  
+  try {
+    // Create temp directory
+    if (!fs.existsSync(path.dirname(tempDir))) {
+      fs.mkdirSync(path.dirname(tempDir), { recursive: true });
+    }
+
+    // Clone repository with full history for better analysis
+    const git = simpleGit();
+    let cloneSuccess = false;
+    
+    // Try to clone with the specified branch first
+    try {
+      await git.clone(repoUrl, tempDir, ["-b", branch]);
+      cloneSuccess = true;
+    } catch (error) {
+      console.log(`Failed to clone with branch '${branch}', trying default branches...`);
+      
+      // Try common default branches
+      const defaultBranches = ["main", "master", "develop"];
+      for (const defaultBranch of defaultBranches) {
+        if (defaultBranch === branch) continue; // Skip if we already tried this branch
+        
+        try {
+          // Clean up previous attempt
+          if (fs.existsSync(tempDir)) {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+          }
+          
+          await git.clone(repoUrl, tempDir, ["-b", defaultBranch]);
+          console.log(`Successfully cloned with branch '${defaultBranch}'`);
+          cloneSuccess = true;
+          break;
+        } catch (branchError) {
+          console.log(`Failed to clone with branch '${defaultBranch}': ${branchError.message}`);
+        }
+      }
+    }
+    
+    if (!cloneSuccess) {
+      console.error("Failed to clone repository with any branch");
+      analysis.status = "failed";
+      analysis.error = "Failed to clone repository - no valid branch found";
+      
+      // Clean up temp directory
+      if (fs.existsSync(tempDir)) {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+      return;
+    }
+
+    const repoGit = simpleGit(tempDir);
+
+    // Get commit history with comprehensive data
+    const log = await repoGit.log({
+      maxCount: 2000,
+      format: {
+        hash: "%H",
+        author: "%an",
+        authorEmail: "%ae",
+        date: "%aI",
+        message: "%s",
+        body: "%b",
+        refs: "%D"
+      }
+    });
+
+    // Check if repository is empty
+    if (log.all.length === 0) {
+      console.log("Repository is empty - no commits found");
+      analysis.status = "completed";
+      analysis.completedAt = new Date();
+      analysis.metrics = {
+        totalCommits: 0,
+        totalFiles: 0,
+        contributors: 0,
+        timeRange: {
+          firstCommit: null,
+          lastCommit: null,
+        },
+      };
+      analysis.summary = {
+        mostActiveFiles: [],
+        topContributors: [],
+        majorFeatures: [],
+      };
+      analysis.error = "Repository is empty - no commits found";
+
+      // Store empty results
+      analysisResults.set(analysisId, {
+        commits: [],
+        contributors: [],
+        fileOwnership: [],
+        complexity: [],
+        features: [],
+        insights: ["Repository is empty with no commit history"]
+      });
+
+      // Clean up temp directory
+      fs.rmSync(tempDir, { recursive: true, force: true });
+      return;
+    }
+
+    // Get file statistics
+    const files = await repoGit.raw(["ls-files"]);
+    const fileList = files.split("\n").filter(f => f.trim());
+
+    // Get contributor statistics
+    const contributors = new Map();
+    const fileOwnership = new Map();
+    const commitPatterns = [];
+
+    for (const commit of log.all) {
+      // Track contributors
+      const author = commit.author;
+      if (!contributors.has(author)) {
+        contributors.set(author, {
+          name: author,
+          commits: 0,
+          linesAdded: 0,
+          linesRemoved: 0,
+          filesOwned: new Set(),
+          primaryAreas: new Set()
+        });
+      }
+      contributors.get(author).commits++;
+
+      // Get commit details
+      try {
+        const commitDetails = await repoGit.show([commit.hash, "--stat", "--format="]);
+        const statMatch = commitDetails.match(/(\d+) files? changed(?:, (\d+) insertions?)?(?:, (\d+) deletions?)?/);
+        
+        if (statMatch) {
+          const linesAdded = parseInt(statMatch[2]) || 0;
+          const linesRemoved = parseInt(statMatch[3]) || 0;
+          
+          contributors.get(author).linesAdded += linesAdded;
+          contributors.get(author).linesRemoved += linesRemoved;
+        }
+
+        // Get files changed
+        const filesChanged = await repoGit.raw(["show", "--name-only", "--format=", commit.hash]);
+        const changedFiles = filesChanged.split("\n").filter(f => f.trim());
+        
+        for (const file of changedFiles) {
+          contributors.get(author).filesOwned.add(file);
+          
+          // Track file ownership
+          if (!fileOwnership.has(file)) {
+            fileOwnership.set(file, new Map());
+          }
+          const fileContributors = fileOwnership.get(file);
+          fileContributors.set(author, (fileContributors.get(author) || 0) + 1);
+        }
+
+        // Analyze commit patterns
+        commitPatterns.push({
+          hash: commit.hash,
+          author: commit.author,
+          date: commit.date,
+          message: commit.message,
+          body: commit.body,
+          files: changedFiles,
+          linesAdded: parseInt(statMatch[2]) || 0,
+          linesRemoved: parseInt(statMatch[3]) || 0
+        });
+
+      } catch (error) {
+        console.warn(`Error processing commit ${commit.hash}:`, error.message);
+      }
+    }
+
+    // Calculate complexity and trends
+    const complexityData = calculateComplexityTrends(commitPatterns);
+    
+    // Extract business features using AI
+    const features = await extractBusinessFeaturesWithAI(commitPatterns);
+    
+    // Generate insights
+    const insights = await generateInsightsWithAI(commitPatterns, contributors, fileOwnership);
+
+    // Update analysis with results
+    analysis.status = "completed";
+    analysis.completedAt = new Date();
+    analysis.metrics = {
+      totalCommits: log.all.length,
+      totalFiles: fileList.length,
+      contributors: contributors.size,
+      timeRange: {
+        firstCommit: log.all[log.all.length - 1]?.date || null,
+        lastCommit: log.all[0]?.date || null,
+      },
+    };
+    analysis.summary = {
+      mostActiveFiles: getMostActiveFiles(fileOwnership, 10),
+      topContributors: getTopContributors(contributors, 10),
+      majorFeatures: features.map(f => f.name),
+    };
+
+    // Store detailed results
+    analysisResults.set(analysisId, {
+      commits: commitPatterns,
+      contributors: Array.from(contributors.values()).map(c => ({
+        ...c,
+        filesOwned: c.filesOwned.size,
+        primaryAreas: Array.from(c.primaryAreas)
+      })),
+      fileOwnership: Array.from(fileOwnership.entries()).map(([file, contributors]) => ({
+        file,
+        contributors: Array.from(contributors.entries()).map(([name, count]) => ({ name, count }))
+      })),
+      complexity: complexityData,
+      features: features,
+      insights: insights
+    });
+
+    // Clean up temp directory
+    fs.rmSync(tempDir, { recursive: true, force: true });
+
+  } catch (error) {
+    console.error("Analysis failed:", error);
+    analysis.status = "failed";
+    analysis.error = error.message;
+    
+    // Clean up temp directory
+    if (fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  }
+}
+
+// Helper functions
+function calculateComplexityTrends(commits) {
+  const monthlyData = new Map();
+  
+  for (const commit of commits) {
+    const month = commit.date.substring(0, 7); // YYYY-MM
+    if (!monthlyData.has(month)) {
+      monthlyData.set(month, {
+        date: month,
+        commitCount: 0,
+        filesChanged: 0,
+        complexity: 0,
+        contributors: new Set(),
+        totalLines: 0
+      });
+    }
+    
+    const data = monthlyData.get(month);
+    data.commitCount++;
+    data.filesChanged += commit.files.length;
+    data.contributors.add(commit.author);
+    data.totalLines += commit.linesAdded + commit.linesRemoved;
+  }
+
+  // Calculate complexity score
+  for (const data of monthlyData.values()) {
+    data.complexity = Math.min(1, (data.filesChanged / data.commitCount) * 0.3 + 
+                                   (data.totalLines / data.commitCount) * 0.0001);
+    data.contributors = data.contributors.size;
+  }
+
+  return Array.from(monthlyData.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// Enhanced feature extraction using AI
+async function extractBusinessFeaturesWithAI(commits) {
+  try {
+    // Group commits by time periods and patterns
+    const commitGroups = groupCommitsByPatterns(commits);
+    
+    // Use AI to analyze commit groups for business features
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are a software architecture analyst. Analyze commit messages and identify business features and architectural decisions.
+          
+Return a JSON object with this structure:
+{
+  "features": [
+    {
+      "name": "Feature Name",
+      "description": "What this feature does",
+      "commits": ["hash1", "hash2"],
+      "timeRange": {"start": "2023-01-01", "end": "2023-02-01"},
+      "contributors": ["author1", "author2"],
+      "businessValue": "Why this feature matters",
+      "complexity": "low|medium|high",
+      "category": "auth|payment|ui|api|database|security|infrastructure"
+    }
+  ],
+  "architecturalDecisions": [
+    {
+      "decision": "Decision made",
+      "rationale": "Why this decision was made",
+      "impact": "low|medium|high",
+      "date": "2023-01-01",
+      "commits": ["hash1"]
+    }
+  ]
+}`
+        },
+        {
+          role: "user",
+          content: `Analyze these commits and identify business features:\n${commits.slice(0, 50).map(c => 
+            `${c.hash.substring(0, 8)} - ${c.message} (${c.files.join(', ')})`
+          ).join('\n')}`
+        }
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 2000,
+    });
+
+    const aiAnalysis = JSON.parse(response.choices[0].message.content);
+    return aiAnalysis.features || [];
+  } catch (error) {
+    console.error("AI feature extraction failed, falling back to keyword-based:", error);
+    return extractBusinessFeatures(commits);
+  }
+}
+
+function extractBusinessFeatures(commits) {
+  const features = [];
+  const featureKeywords = [
+    'auth', 'authentication', 'login', 'signup', 'payment', 'stripe', 'billing',
+    'api', 'database', 'user', 'admin', 'dashboard', 'report', 'analytics',
+    'notification', 'email', 'sms', 'chat', 'messaging', 'file', 'upload',
+    'search', 'filter', 'sort', 'export', 'import', 'backup', 'security'
+  ];
+
+  // Group commits by feature patterns
+  const featureGroups = new Map();
+  
+  for (const commit of commits) {
+    const message = commit.message.toLowerCase();
+    const body = commit.body.toLowerCase();
+    
+    for (const keyword of featureKeywords) {
+      if (message.includes(keyword) || body.includes(keyword)) {
+        if (!featureGroups.has(keyword)) {
+          featureGroups.set(keyword, {
+            name: keyword.charAt(0).toUpperCase() + keyword.slice(1),
+            commits: [],
+            timeRange: { start: commit.date, end: commit.date },
+            contributors: new Set()
+          });
+        }
+        
+        const group = featureGroups.get(keyword);
+        group.commits.push(commit);
+        group.contributors.add(commit.author);
+        
+        if (commit.date < group.timeRange.start) group.timeRange.start = commit.date;
+        if (commit.date > group.timeRange.end) group.timeRange.end = commit.date;
+      }
+    }
+  }
+
+  // Convert to features array
+  for (const [keyword, group] of featureGroups) {
+    if (group.commits.length >= 2) { // Only include features with multiple commits
+      features.push({
+        name: group.name,
+        description: `Feature related to ${keyword}`,
+        commits: group.commits.map(c => c.hash),
+        timeRange: group.timeRange,
+        contributors: Array.from(group.contributors),
+        businessValue: determineBusinessValue(keyword),
+        complexity: determineComplexity(group.commits)
+      });
+    }
+  }
+
+  return features;
+}
+
+function groupCommitsByPatterns(commits) {
+  // Group commits by similar patterns and time proximity
+  const groups = [];
+  const timeWindow = 7 * 24 * 60 * 60 * 1000; // 7 days
+  
+  for (const commit of commits) {
+    const commitTime = new Date(commit.date).getTime();
+    let addedToGroup = false;
+    
+    for (const group of groups) {
+      const groupTime = new Date(group.commits[0].date).getTime();
+      if (Math.abs(commitTime - groupTime) < timeWindow) {
+        group.commits.push(commit);
+        addedToGroup = true;
+        break;
+      }
+    }
+    
+    if (!addedToGroup) {
+      groups.push({ commits: [commit] });
+    }
+  }
+  
+  return groups;
+}
+
+function determineBusinessValue(keyword) {
+  const valueMap = {
+    'auth': 'Security and user management',
+    'payment': 'Revenue generation',
+    'api': 'System integration and extensibility',
+    'database': 'Data persistence and management',
+    'user': 'User experience and engagement',
+    'admin': 'System administration and control',
+    'dashboard': 'Data visualization and insights',
+    'report': 'Business intelligence and analytics',
+    'notification': 'User engagement and communication',
+    'search': 'User experience and content discovery',
+    'file': 'Content management and storage',
+    'security': 'Data protection and compliance'
+  };
+  
+  return valueMap[keyword] || 'Feature enhancement';
+}
+
+function determineComplexity(commits) {
+  const totalLines = commits.reduce((sum, c) => sum + c.linesAdded + c.linesRemoved, 0);
+  const totalFiles = new Set(commits.flatMap(c => c.files)).size;
+  
+  if (totalLines > 1000 || totalFiles > 20) return 'high';
+  if (totalLines > 500 || totalFiles > 10) return 'medium';
+  return 'low';
+}
+
+// Enhanced insights generation using AI
+async function generateInsightsWithAI(commits, contributors, fileOwnership) {
+  try {
+    const analysisData = {
+      totalCommits: commits.length,
+      contributors: Array.from(contributors.values()).slice(0, 10),
+      mostActiveFiles: getMostActiveFiles(fileOwnership, 10),
+      commitTrends: calculateCommitTrends(commits),
+      recentActivity: getRecentActivity(commits),
+      codeQualityMetrics: calculateCodeQualityMetrics(commits)
+    };
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are a senior software engineering manager analyzing codebase health and team dynamics. 
+          
+Generate actionable insights from the repository data. Return a JSON array of insights, each being a string that:
+- Identifies patterns in development practices
+- Highlights potential risks or opportunities
+- Provides context about team collaboration
+- Suggests areas for improvement
+- Notes architectural evolution patterns
+
+Focus on practical, actionable insights that would be valuable to engineering managers.`
+        },
+        {
+          role: "user",
+          content: `Analyze this repository data and generate insights: ${JSON.stringify(analysisData)}`
+        }
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 800,
+    });
+
+    const aiResult = JSON.parse(response.choices[0].message.content);
+    return aiResult.insights || generateInsights(commits, contributors, fileOwnership);
+  } catch (error) {
+    console.error("AI insights generation failed, falling back to basic insights:", error);
+    return generateInsights(commits, contributors, fileOwnership);
+  }
+}
+
+function generateInsights(commits, contributors, fileOwnership) {
+  const insights = [];
+  
+  // Team insights
+  const topContributor = Array.from(contributors.values())
+    .sort((a, b) => b.commits - a.commits)[0];
+  
+  if (topContributor) {
+    insights.push(`${topContributor.name} is the most active contributor with ${topContributor.commits} commits`);
+  }
+
+  // Activity insights
+  const recentCommits = commits.filter(c => {
+    const commitDate = new Date(c.date);
+    const monthAgo = new Date();
+    monthAgo.setMonth(monthAgo.getMonth() - 1);
+    return commitDate > monthAgo;
+  });
+  
+  if (recentCommits.length > 0) {
+    insights.push(`Recent activity shows ${recentCommits.length} commits in the last month`);
+  }
+
+  // File insights
+  const mostActiveFile = Array.from(fileOwnership.entries())
+    .sort((a, b) => b[1].size - a[1].size)[0];
+  
+  if (mostActiveFile) {
+    insights.push(`${mostActiveFile[0]} is the most frequently modified file`);
+  }
+
+  return insights;
+}
+
+function calculateCommitTrends(commits) {
+  const trends = {};
+  const now = new Date();
+  const weeks = [];
+  
+  for (let i = 0; i < 12; i++) {
+    const weekStart = new Date(now.getTime() - (i * 7 * 24 * 60 * 60 * 1000));
+    const weekEnd = new Date(weekStart.getTime() + (7 * 24 * 60 * 60 * 1000));
+    
+    const weekCommits = commits.filter(c => {
+      const commitDate = new Date(c.date);
+      return commitDate >= weekStart && commitDate <= weekEnd;
+    });
+    
+    weeks.push({
+      week: i,
+      commits: weekCommits.length,
+      contributors: new Set(weekCommits.map(c => c.author)).size,
+      linesChanged: weekCommits.reduce((sum, c) => sum + c.linesAdded + c.linesRemoved, 0)
+    });
+  }
+  
+  return weeks.reverse();
+}
+
+function getRecentActivity(commits) {
+  const last30Days = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const recentCommits = commits.filter(c => new Date(c.date) > last30Days);
+  
+  return {
+    totalCommits: recentCommits.length,
+    uniqueContributors: new Set(recentCommits.map(c => c.author)).size,
+    avgCommitsPerDay: recentCommits.length / 30,
+    mostActiveDay: getMostActiveDay(recentCommits)
+  };
+}
+
+function getMostActiveDay(commits) {
+  const dayCounts = {};
+  commits.forEach(c => {
+    const day = new Date(c.date).toLocaleDateString('en-US', { weekday: 'long' });
+    dayCounts[day] = (dayCounts[day] || 0) + 1;
+  });
+  
+  return Object.entries(dayCounts)
+    .sort((a, b) => b[1] - a[1])[0]?.[0] || "No data";
+}
+
+function calculateCodeQualityMetrics(commits) {
+  const metrics = {
+    avgCommitSize: Math.round(commits.reduce((sum, c) => sum + c.linesAdded + c.linesRemoved, 0) / commits.length),
+    largeCommits: commits.filter(c => (c.linesAdded + c.linesRemoved) > 500).length,
+    refactorCommits: commits.filter(c => c.message.toLowerCase().includes('refactor')).length,
+    testCommits: commits.filter(c => c.message.toLowerCase().includes('test') || 
+                                     c.files.some(f => f.includes('test') || f.includes('spec'))).length,
+    bugfixCommits: commits.filter(c => c.message.toLowerCase().includes('fix') || 
+                                       c.message.toLowerCase().includes('bug')).length
+  };
+  
+  return metrics;
+}
+
+function getMostActiveFiles(fileOwnership, limit) {
+  return Array.from(fileOwnership.entries())
+    .sort((a, b) => b[1].size - a[1].size)
+    .slice(0, limit)
+    .map(([file]) => file);
+}
+
+function getTopContributors(contributors, limit) {
+  return Array.from(contributors.values())
+    .sort((a, b) => b.commits - a.commits)
+    .slice(0, limit)
+    .map(c => c.name);
+}
+
 // GET /api/codebase-time-machine/analysis/:id
 // Get analysis status and results
 router.get("/analysis/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    // TODO: Fetch from database
-    const analysis = {
-      id: id,
-      repoUrl: "https://github.com/example/repo",
-      branch: "main",
-      status: "completed",
-      startedAt: new Date(),
-      completedAt: new Date(),
-      metrics: {
-        totalCommits: 1250,
-        totalFiles: 450,
-        contributors: 15,
-        timeRange: {
-          firstCommit: "2020-01-15",
-          lastCommit: "2024-01-15",
-        },
-      },
-      summary: {
-        mostActiveFiles: ["src/main.js", "package.json", "README.md"],
-        topContributors: ["alice", "bob", "charlie"],
-        majorFeatures: ["authentication", "database", "api"],
-      },
-    };
+    const analysis = analyses.get(id);
+    if (!analysis) {
+      return res.status(404).json({ error: "Analysis not found" });
+    }
 
     res.json({ analysis });
   } catch (error) {
@@ -98,50 +686,38 @@ router.post("/query", async (req, res) => {
         .json({ error: "Analysis ID and question are required" });
     }
 
-    // TODO: Implement semantic query processing
+    const analysis = analyses.get(analysisId);
+    if (!analysis) {
+      return res.status(404).json({ error: "Analysis not found" });
+    }
+
+    const results = analysisResults.get(analysisId);
+    if (!results) {
+      return res.status(404).json({ error: "Analysis results not found" });
+    }
+
     // Process query using GPT-4
     let queryResult;
     try {
-      // TODO: Get actual commit data and code changes
-      const mockCommits = [
-        {
-          hash: "abc123",
-          author: "alice",
-          date: "2022-03-15",
-          message: "Add authentication middleware",
-          files: ["src/auth.js", "src/middleware.js"],
-          linesAdded: 150,
-          linesRemoved: 0,
-        },
-        {
-          hash: "def456",
-          author: "bob",
-          date: "2022-03-20",
-          message: "Update auth tests",
-          files: ["tests/auth.test.js"],
-          linesAdded: 45,
-          linesRemoved: 12,
-        },
-      ];
-
+      // Find relevant commits based on question
+      const relevantCommits = findRelevantCommits(results.commits, question);
+      
       // Analyze code changes using GPT-4
-      const analysisResults = [];
-      for (const commit of mockCommits) {
+      const analyzedCommits = [];
+      for (const commit of relevantCommits.slice(0, 5)) { // Limit to 5 commits for performance
         try {
-          const analysis = await analyzeCodeChanges(commit.message, [
-            {
-              file: commit.files[0],
-              linesAdded: commit.linesAdded,
-              linesRemoved: commit.linesRemoved,
-            },
-          ]);
-          analysisResults.push({
+          const analysis = await analyzeCodeChanges(commit.message, commit.files.map(file => ({
+            file,
+            linesAdded: commit.linesAdded,
+            linesRemoved: commit.linesRemoved,
+          })));
+          analyzedCommits.push({
             ...commit,
             analysis: analysis,
           });
         } catch (error) {
           console.error("Error analyzing commit:", error);
-          analysisResults.push({
+          analyzedCommits.push({
             ...commit,
             analysis: {
               impact: "medium",
@@ -152,73 +728,46 @@ router.post("/query", async (req, res) => {
         }
       }
 
+      // Generate answer using GPT-4
+      const answer = await generateQueryAnswer(question, analyzedCommits, results);
+
       queryResult = {
         id: uuidv4(),
         analysisId: analysisId,
         question: question,
-        answer:
-          "The authentication pattern was introduced in commit abc123 by Alice on 2022-03-15. It was implemented to address security concerns raised in issue #45.",
-        relatedCommits: analysisResults.map((commit) => ({
+        answer: answer,
+        relatedCommits: analyzedCommits.map((commit) => ({
           hash: commit.hash,
           author: commit.author,
           date: commit.date,
           message: commit.message,
           files: commit.files,
-          relevance: 0.95,
+          relevance: calculateRelevance(commit, question),
           analysis: commit.analysis,
         })),
-        timeline: [
-          {
-            date: "2022-03-15",
-            event: "Authentication pattern introduced",
-            commit: "abc123",
-          },
-          {
-            date: "2022-03-20",
-            event: "Tests added",
-            commit: "def456",
-          },
-        ],
+        timeline: generateTimeline(analyzedCommits, question),
       };
     } catch (error) {
       console.error("Error processing query:", error);
-      // Fallback to mock result if AI processing fails
+      // Fallback to simple analysis
       queryResult = {
         id: uuidv4(),
         analysisId: analysisId,
         question: question,
-        answer:
-          "The authentication pattern was introduced in commit abc123 by Alice on 2022-03-15. It was implemented to address security concerns raised in issue #45.",
-        relatedCommits: [
-          {
-            hash: "abc123",
-            author: "alice",
-            date: "2022-03-15",
-            message: "Add authentication middleware",
-            files: ["src/auth.js", "src/middleware.js"],
-            relevance: 0.95,
-          },
-          {
-            hash: "def456",
-            author: "bob",
-            date: "2022-03-20",
-            message: "Update auth tests",
-            files: ["tests/auth.test.js"],
-            relevance: 0.87,
-          },
-        ],
-        timeline: [
-          {
-            date: "2022-03-15",
-            event: "Authentication pattern introduced",
-            commit: "abc123",
-          },
-          {
-            date: "2022-03-20",
-            event: "Tests added",
-            commit: "def456",
-          },
-        ],
+        answer: generateFallbackAnswer(question, results),
+        relatedCommits: results.commits.slice(0, 3).map(commit => ({
+          hash: commit.hash,
+          author: commit.author,
+          date: commit.date,
+          message: commit.message,
+          files: commit.files,
+          relevance: 0.5,
+        })),
+        timeline: results.commits.slice(0, 3).map(commit => ({
+          date: commit.date,
+          event: commit.message,
+          commit: commit.hash,
+        })),
       };
     }
 
@@ -229,6 +778,124 @@ router.post("/query", async (req, res) => {
   }
 });
 
+// Helper functions for query processing
+function findRelevantCommits(commits, question) {
+  const questionLower = question.toLowerCase();
+  const keywords = questionLower.split(' ').filter(word => word.length > 3);
+  
+  return commits
+    .map(commit => {
+      const messageLower = commit.message.toLowerCase();
+      const bodyLower = (commit.body || '').toLowerCase();
+      const filesLower = commit.files.join(' ').toLowerCase();
+      
+      let score = 0;
+      for (const keyword of keywords) {
+        if (messageLower.includes(keyword)) score += 3;
+        if (bodyLower.includes(keyword)) score += 2;
+        if (filesLower.includes(keyword)) score += 1;
+      }
+      
+      return { ...commit, relevanceScore: score };
+    })
+    .filter(commit => commit.relevanceScore > 0)
+    .sort((a, b) => b.relevanceScore - a.relevanceScore);
+}
+
+function calculateRelevance(commit, question) {
+  const questionLower = question.toLowerCase();
+  const messageLower = commit.message.toLowerCase();
+  
+  let relevance = 0;
+  const words = questionLower.split(' ');
+  
+  for (const word of words) {
+    if (word.length > 3 && messageLower.includes(word)) {
+      relevance += 0.2;
+    }
+  }
+  
+  return Math.min(1, relevance);
+}
+
+function generateTimeline(commits, question) {
+  return commits
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .map(commit => ({
+      date: commit.date,
+      event: commit.message,
+      commit: commit.hash,
+    }));
+}
+
+async function generateQueryAnswer(question, commits, results) {
+  try {
+    // Prepare comprehensive context for AI analysis
+    const commitContext = commits.map(c => 
+      `${c.hash.substring(0, 8)} by ${c.author} on ${c.date}: ${c.message}\nFiles: ${c.files.join(', ')}\nLines: +${c.linesAdded} -${c.linesRemoved}`
+    ).join('\n\n');
+    
+    const contextualData = {
+      totalCommits: results.commits.length,
+      totalContributors: results.contributors.length,
+      features: results.features?.slice(0, 5) || [],
+      insights: results.insights?.slice(0, 3) || []
+    };
+    
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert software architect and codebase historian. You analyze git repositories to understand:
+- How features evolved over time
+- Why architectural decisions were made
+- How team dynamics affected code development
+- Business context behind technical changes
+
+Provide detailed, insightful answers that explain the "why" behind code changes, not just the "what".
+Focus on patterns, motivations, and business context.`
+        },
+        {
+          role: "user",
+          content: `Question: ${question}
+
+Repository Context:
+${JSON.stringify(contextualData, null, 2)}
+
+Relevant Commits:
+${commitContext}
+
+Provide a comprehensive answer that explains the evolution, patterns, and context behind the code changes.`
+        }
+      ],
+      max_tokens: 800,
+      temperature: 0.3,
+    });
+
+    return response.choices[0].message.content;
+  } catch (error) {
+    console.error("Error generating answer:", error);
+    return generateFallbackAnswer(question, results);
+  }
+}
+
+function generateFallbackAnswer(question, results) {
+  const questionLower = question.toLowerCase();
+  
+  if (questionLower.includes('auth') || questionLower.includes('authentication')) {
+    const authCommits = results.commits.filter(c => 
+      c.message.toLowerCase().includes('auth') || 
+      c.files.some(f => f.toLowerCase().includes('auth'))
+    );
+    if (authCommits.length > 0) {
+      return `Authentication-related changes were found in ${authCommits.length} commits, starting from ${authCommits[authCommits.length - 1].date}.`;
+    }
+  }
+  
+  return `Based on the analysis of ${results.commits.length} commits, I found relevant information related to your question. Please check the related commits for more details.`;
+}
+
 // GET /api/codebase-time-machine/evolution/:analysisId
 // Get code evolution visualization data
 router.get("/evolution/:analysisId", async (req, res) => {
@@ -236,39 +903,17 @@ router.get("/evolution/:analysisId", async (req, res) => {
     const { analysisId } = req.params;
     const { feature, timeRange } = req.query;
 
-    // TODO: Generate evolution data
+    const results = analysisResults.get(analysisId);
+    if (!results) {
+      return res.status(404).json({ error: "Analysis results not found" });
+    }
+
     const evolution = {
       analysisId: analysisId,
       feature: feature || "overall",
       timeRange: timeRange || "all",
-      data: [
-        {
-          date: "2020-01-15",
-          commitCount: 5,
-          filesChanged: 12,
-          complexity: 0.3,
-          contributors: 2,
-        },
-        {
-          date: "2020-06-15",
-          commitCount: 45,
-          filesChanged: 89,
-          complexity: 0.6,
-          contributors: 4,
-        },
-        {
-          date: "2021-01-15",
-          commitCount: 120,
-          filesChanged: 234,
-          complexity: 0.8,
-          contributors: 8,
-        },
-      ],
-      insights: [
-        "Codebase complexity increased 167% in the first year",
-        "Team size doubled during major feature development",
-        "Most active development period was Q2 2020",
-      ],
+      data: results.complexity || [],
+      insights: results.insights || [],
     };
 
     res.json({ evolution });
@@ -284,49 +929,29 @@ router.get("/ownership/:analysisId", async (req, res) => {
   try {
     const { analysisId } = req.params;
 
-    // TODO: Calculate ownership metrics
+    const results = analysisResults.get(analysisId);
+    if (!results) {
+      return res.status(404).json({ error: "Analysis results not found" });
+    }
+
+    // Calculate file ownership percentages
+    const fileOwnership = results.fileOwnership.map(fileData => {
+      const totalContributions = fileData.contributors.reduce((sum, c) => sum + c.count, 0);
+      const primaryContributor = fileData.contributors.sort((a, b) => b.count - a.count)[0];
+      
+      return {
+        file: fileData.file,
+        primaryOwner: primaryContributor.name,
+        ownershipPercentage: Math.round((primaryContributor.count / totalContributions) * 100),
+        lastModified: results.commits.find(c => c.files.includes(fileData.file))?.date || "Unknown",
+      };
+    });
+
     const ownership = {
       analysisId: analysisId,
-      contributors: [
-        {
-          name: "alice",
-          commits: 450,
-          linesAdded: 15000,
-          linesRemoved: 8000,
-          filesOwned: 45,
-          primaryAreas: ["frontend", "authentication"],
-        },
-        {
-          name: "bob",
-          commits: 320,
-          linesAdded: 12000,
-          linesRemoved: 6000,
-          filesOwned: 32,
-          primaryAreas: ["backend", "database"],
-        },
-      ],
-      fileOwnership: [
-        {
-          file: "src/auth.js",
-          primaryOwner: "alice",
-          ownershipPercentage: 85,
-          lastModified: "2024-01-10",
-        },
-        {
-          file: "src/database.js",
-          primaryOwner: "bob",
-          ownershipPercentage: 90,
-          lastModified: "2024-01-12",
-        },
-      ],
-      complexityTrends: [
-        {
-          file: "src/main.js",
-          complexity: 0.8,
-          trend: "increasing",
-          contributors: ["alice", "bob"],
-        },
-      ],
+      contributors: results.contributors || [],
+      fileOwnership: fileOwnership,
+      complexityTrends: results.complexity || [],
     };
 
     res.json({ ownership });
@@ -342,44 +967,15 @@ router.get("/features/:analysisId", async (req, res) => {
   try {
     const { analysisId } = req.params;
 
-    // TODO: Extract feature information from commits and issues
+    const results = analysisResults.get(analysisId);
+    if (!results) {
+      return res.status(404).json({ error: "Analysis results not found" });
+    }
+
     const features = {
       analysisId: analysisId,
-      features: [
-        {
-          name: "User Authentication",
-          description: "Complete authentication system with JWT tokens",
-          commits: ["abc123", "def456", "ghi789"],
-          timeRange: {
-            start: "2022-03-15",
-            end: "2022-04-20",
-          },
-          contributors: ["alice", "bob"],
-          businessValue: "Security and user management",
-          complexity: "high",
-        },
-        {
-          name: "Payment Integration",
-          description: "Stripe payment processing integration",
-          commits: ["jkl012", "mno345"],
-          timeRange: {
-            start: "2022-05-01",
-            end: "2022-06-15",
-          },
-          contributors: ["charlie"],
-          businessValue: "Revenue generation",
-          complexity: "medium",
-        },
-      ],
-      decisions: [
-        {
-          date: "2022-03-10",
-          decision: "Use JWT for authentication",
-          rationale: "Stateless, scalable, industry standard",
-          impact: "positive",
-          relatedCommits: ["abc123"],
-        },
-      ],
+      features: results.features || [],
+      decisions: generateArchitecturalDecisions(results.commits),
     };
 
     res.json({ features });
@@ -389,6 +985,44 @@ router.get("/features/:analysisId", async (req, res) => {
   }
 });
 
+// Helper function to generate architectural decisions
+function generateArchitecturalDecisions(commits) {
+  const decisions = [];
+  const decisionKeywords = [
+    'refactor', 'architecture', 'design', 'pattern', 'framework', 'library',
+    'database', 'api', 'security', 'performance', 'scalability', 'maintainability'
+  ];
+
+  for (const commit of commits) {
+    const message = commit.message.toLowerCase();
+    const body = commit.body.toLowerCase();
+    
+    for (const keyword of decisionKeywords) {
+      if (message.includes(keyword) || body.includes(keyword)) {
+        decisions.push({
+          date: commit.date,
+          decision: commit.message,
+          rationale: body || "Architectural decision made",
+          impact: determineDecisionImpact(commit),
+          relatedCommits: [commit.hash],
+        });
+        break; // Only add each commit once
+      }
+    }
+  }
+
+  return decisions.slice(0, 10); // Limit to 10 decisions
+}
+
+function determineDecisionImpact(commit) {
+  const linesChanged = commit.linesAdded + commit.linesRemoved;
+  const filesChanged = commit.files.length;
+  
+  if (linesChanged > 500 || filesChanged > 20) return 'high';
+  if (linesChanged > 100 || filesChanged > 5) return 'medium';
+  return 'low';
+}
+
 // GET /api/codebase-time-machine/commits/:analysisId
 // Get detailed commit information
 router.get("/commits/:analysisId", async (req, res) => {
@@ -396,36 +1030,62 @@ router.get("/commits/:analysisId", async (req, res) => {
     const { analysisId } = req.params;
     const { author, date, file, limit = 50 } = req.query;
 
-    // TODO: Fetch commits with filters
+    const results = analysisResults.get(analysisId);
+    if (!results) {
+      return res.status(404).json({ error: "Analysis results not found" });
+    }
+
+    // Apply filters
+    let filteredCommits = results.commits;
+    
+    if (author) {
+      filteredCommits = filteredCommits.filter(c => 
+        c.author.toLowerCase().includes(author.toLowerCase())
+      );
+    }
+    
+    if (date) {
+      filteredCommits = filteredCommits.filter(c => 
+        c.date.startsWith(date)
+      );
+    }
+    
+    if (file) {
+      filteredCommits = filteredCommits.filter(c => 
+        c.files.some(f => f.toLowerCase().includes(file.toLowerCase()))
+      );
+    }
+
+    // Apply limit
+    filteredCommits = filteredCommits.slice(0, parseInt(limit) || 50);
+
+    // Calculate summary
+    const totalCommits = results.commits.length;
+    const totalAuthors = new Set(results.commits.map(c => c.author)).size;
+    const averageCommitSize = Math.round(
+      results.commits.reduce((sum, c) => sum + c.linesAdded + c.linesRemoved, 0) / totalCommits
+    );
+    
+    // Find most active day
+    const dayCounts = {};
+    results.commits.forEach(c => {
+      const day = new Date(c.date).toLocaleDateString('en-US', { weekday: 'long' });
+      dayCounts[day] = (dayCounts[day] || 0) + 1;
+    });
+    const mostActiveDay = Object.entries(dayCounts)
+      .sort((a, b) => b[1] - a[1])[0]?.[0] || "Unknown";
+
     const commits = {
       analysisId: analysisId,
-      commits: [
-        {
-          hash: "abc123",
-          author: "alice",
-          date: "2022-03-15",
-          message: "Add authentication middleware",
-          files: ["src/auth.js", "src/middleware.js"],
-          linesAdded: 150,
-          linesRemoved: 0,
-          impact: "high",
-        },
-        {
-          hash: "def456",
-          author: "bob",
-          date: "2022-03-20",
-          message: "Update auth tests",
-          files: ["tests/auth.test.js"],
-          linesAdded: 45,
-          linesRemoved: 12,
-          impact: "medium",
-        },
-      ],
+      commits: filteredCommits.map(c => ({
+        ...c,
+        impact: determineCommitImpact(c)
+      })),
       summary: {
-        totalCommits: 1250,
-        totalAuthors: 15,
-        averageCommitSize: 25,
-        mostActiveDay: "Wednesday",
+        totalCommits,
+        totalAuthors,
+        averageCommitSize,
+        mostActiveDay,
       },
     };
 
@@ -436,37 +1096,21 @@ router.get("/commits/:analysisId", async (req, res) => {
   }
 });
 
+function determineCommitImpact(commit) {
+  const linesChanged = commit.linesAdded + commit.linesRemoved;
+  const filesChanged = commit.files.length;
+  
+  if (linesChanged > 500 || filesChanged > 20) return 'high';
+  if (linesChanged > 100 || filesChanged > 5) return 'medium';
+  return 'low';
+}
+
 // GET /api/codebase-time-machine/analyses
 // Get all repository analyses
 router.get("/analyses", async (req, res) => {
   try {
-    // TODO: Fetch from database
-    const analyses = [
-      {
-        id: "1",
-        repoUrl: "https://github.com/example/repo1",
-        status: "completed",
-        startedAt: new Date(),
-        metrics: {
-          totalCommits: 1250,
-          totalFiles: 450,
-          contributors: 15,
-        },
-      },
-      {
-        id: "2",
-        repoUrl: "https://github.com/example/repo2",
-        status: "processing",
-        startedAt: new Date(),
-        metrics: {
-          totalCommits: 0,
-          totalFiles: 0,
-          contributors: 0,
-        },
-      },
-    ];
-
-    res.json({ analyses });
+    const analysesList = Array.from(analyses.values());
+    res.json({ analyses: analysesList });
   } catch (error) {
     console.error("Error fetching analyses:", error);
     res.status(500).json({ error: "Failed to fetch analyses" });

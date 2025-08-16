@@ -96,6 +96,9 @@ function KnowledgeGraph() {
     } catch (error) {
       console.error("Upload error:", error);
       alert("Failed to upload documents");
+    } finally {
+      // Clear the file input
+      event.target.value = "";
     }
   };
 
@@ -113,6 +116,8 @@ function KnowledgeGraph() {
       );
       setUrlForm({ url: "", title: "" });
       alert("URL added successfully!");
+      // Refresh documents list to show the new URL
+      loadProjectDetails(selectedProject.id);
     } catch (error) {
       console.error("URL addition error:", error);
       alert("Failed to add URL");
@@ -127,7 +132,10 @@ function KnowledgeGraph() {
       const response = await axios.post(
         `/api/knowledge-graph/project/${selectedProject.id}/build-graph`
       );
-      alert("Knowledge graph build started! This may take a few minutes.");
+      alert("Knowledge graph built successfully!");
+      // Refresh project data to show updated stats
+      loadProjectDetails(selectedProject.id);
+      loadProjects(); // Refresh project stats in dropdown
     } catch (error) {
       console.error("Graph build error:", error);
       alert("Failed to build knowledge graph");
@@ -154,6 +162,7 @@ function KnowledgeGraph() {
       );
 
       setQueryResult(response.data.queryResult);
+      setQueryForm({ question: "" }); // Clear the input after successful query
     } catch (error) {
       console.error("Query error:", error);
       alert("Failed to process query");
@@ -254,24 +263,24 @@ function KnowledgeGraph() {
         )}
       </div>
 
-      {selectedProject && (
+      {selectedProject ? (
         <>
           <div className="project-overview">
             <h2>Project: {selectedProject.name}</h2>
-            <p>{selectedProject.description}</p>
+            <p>{selectedProject.description || "No description provided"}</p>
 
             <div className="stats-grid">
               <div className="stat-card">
                 <h3>Nodes</h3>
-                <span>{selectedProject.graphStats.nodes}</span>
+                <span>{selectedProject.graphStats?.nodes || 0}</span>
               </div>
               <div className="stat-card">
                 <h3>Edges</h3>
-                <span>{selectedProject.graphStats.edges}</span>
+                <span>{selectedProject.graphStats?.edges || 0}</span>
               </div>
               <div className="stat-card">
                 <h3>Concepts</h3>
-                <span>{selectedProject.graphStats.concepts}</span>
+                <span>{selectedProject.graphStats?.concepts || 0}</span>
               </div>
             </div>
           </div>
@@ -328,13 +337,25 @@ function KnowledgeGraph() {
 
             <div className="build-section">
               <h3>Build Knowledge Graph</h3>
+              <p>
+                Process all uploaded documents and URLs to create the knowledge
+                graph.
+              </p>
               <button
                 onClick={handleBuildGraph}
-                disabled={isBuilding}
+                disabled={isBuilding || !selectedProject}
                 className="build-btn"
               >
                 {isBuilding ? "Building..." : "Build Graph"}
               </button>
+              {selectedProject && (
+                <div className="build-info">
+                  <small>
+                    Total content: {selectedProject.documents?.length || 0}{" "}
+                    items
+                  </small>
+                </div>
+              )}
             </div>
           </div>
 
@@ -434,46 +455,70 @@ function KnowledgeGraph() {
                 <h3>Answer</h3>
                 <p className="answer">{queryResult.answer}</p>
 
-                <div className="confidence">
-                  <span className="confidence-label">Confidence:</span>
-                  <span
-                    className="confidence-value"
-                    style={{
-                      color: getConfidenceColor(queryResult.confidence),
-                    }}
-                  >
-                    {(queryResult.confidence * 100).toFixed(1)}%
-                  </span>
+                <div className="query-meta">
+                  <div className="confidence">
+                    <span className="confidence-label">Confidence:</span>
+                    <span
+                      className="confidence-value"
+                      style={{
+                        color: getConfidenceColor(queryResult.confidence),
+                      }}
+                    >
+                      {(queryResult.confidence * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  {queryResult.contextUsed && (
+                    <div className="context-info">
+                      <span>
+                        Used {queryResult.contextUsed} knowledge sources
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="sources">
-                  <h4>Sources</h4>
-                  <div className="sources-list">
-                    {queryResult.sources?.map((source, index) => (
-                      <div key={index} className="source-item">
-                        <span className="document">{source.document}</span>
-                        <span className="page">Page {source.page}</span>
-                        <span className="relevance">
-                          {(source.relevance * 100).toFixed(0)}% relevant
-                        </span>
-                      </div>
-                    ))}
+                {queryResult.sources && queryResult.sources.length > 0 && (
+                  <div className="sources">
+                    <h4>Sources</h4>
+                    <div className="sources-list">
+                      {queryResult.sources.map((source, index) => (
+                        <div key={index} className="source-item">
+                          <span className="document">{source.document}</span>
+                          {source.page && (
+                            <span className="page">Page {source.page}</span>
+                          )}
+                          <span className="relevance">
+                            {(source.relevance * 100).toFixed(0)}% relevant
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="related-concepts">
-                  <h4>Related Concepts</h4>
-                  <div className="concepts-list">
-                    {queryResult.relatedConcepts?.map((concept, index) => (
-                      <div key={index} className="concept-item">
-                        <span className="concept-name">{concept.label}</span>
-                        <span className="relevance">
-                          {(concept.relevance * 100).toFixed(0)}% relevant
-                        </span>
+                {queryResult.relatedConcepts &&
+                  queryResult.relatedConcepts.length > 0 && (
+                    <div className="related-concepts">
+                      <h4>Related Concepts</h4>
+                      <div className="concepts-list">
+                        {queryResult.relatedConcepts.map((concept, index) => (
+                          <div key={index} className="concept-item">
+                            <span className="concept-name">
+                              {concept.label}
+                            </span>
+                            <span className="relevance">
+                              {(concept.relevance * 100).toFixed(0)}% relevant
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+                  )}
+
+                {queryResult.error && (
+                  <div className="query-error">
+                    <p>⚠️ {queryResult.error}</p>
                   </div>
-                </div>
+                )}
               </div>
             )}
           </div>
@@ -487,30 +532,146 @@ function KnowledgeGraph() {
                   <option value="hierarchical">Hierarchical</option>
                   <option value="circular">Circular</option>
                 </select>
+                <div className="graph-stats">
+                  <span>{visualization.nodes.length} nodes</span>
+                  <span>{visualization.edges.length} edges</span>
+                </div>
               </div>
 
-              <div className="visualization-preview">
-                <p>
-                  Graph visualization would be rendered here with{" "}
-                  {visualization.nodes.length} nodes and{" "}
-                  {visualization.edges.length} edges.
-                </p>
-                <div className="groups-info">
-                  <h4>Node Groups</h4>
-                  {visualization.groups?.map((group, index) => (
-                    <div key={index} className="group-item">
-                      <span
-                        className="group-color"
-                        style={{ backgroundColor: group.color }}
-                      ></span>
-                      <span className="group-name">{group.label}</span>
-                    </div>
-                  ))}
+              {visualization.nodes.length > 0 ? (
+                <div className="graph-container">
+                  <svg width="800" height="600" className="graph-svg">
+                    <defs>
+                      <marker
+                        id="arrowhead"
+                        markerWidth="10"
+                        markerHeight="7"
+                        refX="9"
+                        refY="3.5"
+                        orient="auto"
+                      >
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#45b7d1" />
+                      </marker>
+                    </defs>
+
+                    {/* Render edges first (behind nodes) */}
+                    {visualization.edges.map((edge, index) => {
+                      const sourceNode = visualization.nodes.find(
+                        (n) => n.id === edge.source
+                      );
+                      const targetNode = visualization.nodes.find(
+                        (n) => n.id === edge.target
+                      );
+                      if (!sourceNode || !targetNode) return null;
+
+                      return (
+                        <g key={`edge-${index}`}>
+                          <line
+                            x1={sourceNode.x}
+                            y1={sourceNode.y}
+                            x2={targetNode.x}
+                            y2={targetNode.y}
+                            stroke={edge.color || "#45b7d1"}
+                            strokeWidth={edge.width || 2}
+                            markerEnd="url(#arrowhead)"
+                          />
+                          <text
+                            x={(sourceNode.x + targetNode.x) / 2}
+                            y={(sourceNode.y + targetNode.y) / 2}
+                            textAnchor="middle"
+                            fontSize="12"
+                            fill="#666"
+                            className="edge-label"
+                          >
+                            {edge.label}
+                          </text>
+                        </g>
+                      );
+                    })}
+
+                    {/* Render nodes */}
+                    {visualization.nodes.map((node, index) => (
+                      <g key={`node-${index}`} className="graph-node">
+                        <circle
+                          cx={node.x}
+                          cy={node.y}
+                          r={node.size}
+                          fill={node.color}
+                          stroke="#fff"
+                          strokeWidth="2"
+                          className="node-circle"
+                          title={`${node.label} (${node.frequency} occurrences)`}
+                        />
+                        <text
+                          x={node.x}
+                          y={node.y + node.size + 15}
+                          textAnchor="middle"
+                          fontSize="12"
+                          fill="#333"
+                          className="node-label"
+                        >
+                          {node.label.length > 15
+                            ? node.label.substring(0, 15) + "..."
+                            : node.label}
+                        </text>
+                      </g>
+                    ))}
+                  </svg>
                 </div>
+              ) : (
+                <div className="no-graph">
+                  <p>
+                    No graph data available. Build the graph first to see
+                    visualization.
+                  </p>
+                </div>
+              )}
+
+              <div className="groups-info">
+                <h4>Node Groups</h4>
+                {visualization.groups?.map((group, index) => (
+                  <div key={index} className="group-item">
+                    <span
+                      className="group-color"
+                      style={{ backgroundColor: group.color }}
+                    ></span>
+                    <span className="group-name">
+                      {group.label} ({group.count || 0})
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
         </>
+      ) : (
+        <div className="no-project-selected">
+          <div className="empty-state">
+            <h2>Welcome to Knowledge Graph Builder</h2>
+            <p>
+              Create a project above to start building your interactive
+              knowledge graph from documents and URLs.
+            </p>
+            <div className="features-list">
+              <div className="feature-item">
+                <span className="feature-icon">📄</span>
+                <span>Upload TXT, PDF, HTML, MD files</span>
+              </div>
+              <div className="feature-item">
+                <span className="feature-icon">🌐</span>
+                <span>Add web URLs for content extraction</span>
+              </div>
+              <div className="feature-item">
+                <span className="feature-icon">🕸️</span>
+                <span>Interactive graph visualization</span>
+              </div>
+              <div className="feature-item">
+                <span className="feature-icon">💬</span>
+                <span>Natural language Q&A</span>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

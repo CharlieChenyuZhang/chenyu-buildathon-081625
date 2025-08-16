@@ -150,32 +150,46 @@ async function generateSlideStructure(content) {
 }
 
 /**
- * Analyze sentiment of text
+ * Analyze sentiment of text using GPT-4o
  * @param {string} text - Text to analyze
  * @returns {Promise<Object>} Sentiment analysis results
  */
 async function analyzeSentiment(text) {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
           content:
-            "Analyze the sentiment of the given text. Return a JSON object with sentiment (positive/negative/neutral), confidence (0-1), and emotions array. Format your response as valid JSON only.",
+            'You are a sentiment analysis expert. Analyze the sentiment of the given text and return a JSON object with the following structure: {"sentiment": "positive/negative/neutral", "confidence": 0.0-1.0, "emotions": ["emotion1", "emotion2"], "intensity": "low/medium/high", "context": "brief context about the sentiment"}. Be precise and consider context, tone, and emotional nuances. Format your response as valid JSON only.',
         },
         {
           role: "user",
-          content: `Analyze sentiment: ${text}`,
+          content: `Analyze the sentiment of this message: "${text}"`,
         },
       ],
-      max_tokens: 200,
+      max_tokens: 300,
+      temperature: 0.1,
     });
 
     const content = response.choices[0].message.content;
 
     try {
-      return JSON.parse(content);
+      const result = JSON.parse(content);
+
+      // Validate the response structure
+      if (!result.sentiment || !result.confidence) {
+        throw new Error("Invalid response structure");
+      }
+
+      return {
+        sentiment: result.sentiment,
+        confidence: Math.max(0, Math.min(1, result.confidence)), // Ensure confidence is between 0-1
+        emotions: result.emotions || [],
+        intensity: result.intensity || "medium",
+        context: result.context || "",
+      };
     } catch (parseError) {
       console.warn("Failed to parse JSON response, using fallback:", content);
       // Fallback: simple sentiment analysis
@@ -196,6 +210,13 @@ async function analyzeSentiment(text) {
         "👍",
         "😊",
         "🎉",
+        "wonderful",
+        "amazing",
+        "fantastic",
+        "perfect",
+        "brilliant",
+        "outstanding",
+        "superb",
       ];
       const negativeWords = [
         "bad",
@@ -208,6 +229,14 @@ async function analyzeSentiment(text) {
         "😔",
         "😤",
         "😴",
+        "horrible",
+        "worst",
+        "disappointing",
+        "frustrated",
+        "annoyed",
+        "upset",
+        "depressed",
+        "miserable",
       ];
 
       const positiveCount = positiveWords.filter((word) =>
@@ -229,6 +258,8 @@ async function analyzeSentiment(text) {
         sentiment,
         confidence,
         emotions: [],
+        intensity: "medium",
+        context: "Fallback analysis",
       };
     }
   } catch (error) {
@@ -238,6 +269,8 @@ async function analyzeSentiment(text) {
       sentiment: "neutral",
       confidence: 0.5,
       emotions: [],
+      intensity: "medium",
+      context: "Error occurred during analysis",
     };
   }
 }
@@ -347,35 +380,210 @@ async function analyzeCodeChanges(commitMessage, fileChanges) {
 }
 
 /**
- * Generate insights from employee engagement data
+ * Generate insights from employee engagement data using GPT-4o
  * @param {Object} engagementData - Engagement metrics and trends
  * @returns {Promise<Object>} Generated insights and recommendations
  */
 async function generateEngagementInsights(engagementData) {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content:
-            "Analyze employee engagement data and generate actionable insights. Return a JSON object with insights array, recommendations array, and metrics object.",
+          content: `You are an expert HR analyst specializing in employee engagement and team dynamics. Analyze the provided engagement data and generate actionable insights for managers.
+
+Return a JSON object with the following structure:
+{
+  "recommendations": [
+    {
+      "type": "morale|engagement|communication|workload|burnout",
+      "priority": "high|medium|low",
+      "title": "Brief title",
+      "description": "Detailed description of the issue",
+      "actionItems": ["action1", "action2", "action3"]
+    }
+  ],
+  "metrics": {
+    "teamHappiness": 0.0-1.0,
+    "engagementRate": 0.0-1.0,
+    "stressLevel": 0.0-1.0,
+    "collaborationScore": 0.0-1.0
+  },
+  "keyInsights": [
+    "insight1",
+    "insight2",
+    "insight3"
+  ],
+  "trendAnalysis": "Brief analysis of trends and patterns"
+}
+
+Focus on:
+- Identifying potential burnout risks
+- Suggesting specific, actionable recommendations
+- Providing data-driven insights
+- Considering team dynamics and communication patterns`,
         },
         {
           role: "user",
-          content: `Analyze this engagement data: ${JSON.stringify(
+          content: `Analyze this employee engagement data and provide actionable insights for managers: ${JSON.stringify(
             engagementData
           )}`,
         },
       ],
       response_format: { type: "json_object" },
-      max_tokens: 1000,
+      max_tokens: 1500,
+      temperature: 0.3,
     });
 
     return JSON.parse(response.choices[0].message.content);
   } catch (error) {
     console.error("Error generating engagement insights:", error);
     throw new Error("Failed to generate engagement insights");
+  }
+}
+
+/**
+ * Generate comprehensive trend analysis using GPT-4o
+ * @param {Object} trendData - Weekly trends and patterns data
+ * @returns {Promise<Object>} Detailed trend analysis and predictions
+ */
+async function generateTrendAnalysis(trendData) {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert data analyst specializing in employee sentiment trends and workplace dynamics. Analyze the provided trend data and generate comprehensive insights.
+
+Return a JSON object with the following structure:
+{
+  "trendSummary": "Overall trend analysis",
+  "patternAnalysis": "Detailed pattern analysis",
+  "predictions": [
+    {
+      "type": "sentiment|engagement|burnout",
+      "prediction": "What to expect",
+      "confidence": "high|medium|low",
+      "timeframe": "next_week|next_month"
+    }
+  ],
+  "riskFactors": [
+    {
+      "factor": "Description of risk factor",
+      "impact": "high|medium|low",
+      "mitigation": "How to address it"
+    }
+  ],
+  "opportunities": [
+    {
+      "opportunity": "Description of positive opportunity",
+      "action": "How to capitalize on it"
+    }
+  ],
+  "weeklyInsights": {
+    "monday": "Analysis for Monday",
+    "tuesday": "Analysis for Tuesday",
+    "wednesday": "Analysis for Wednesday",
+    "thursday": "Analysis for Thursday",
+    "friday": "Analysis for Friday"
+  }
+}
+
+Focus on:
+- Identifying patterns in daily sentiment
+- Predicting future trends
+- Highlighting risk factors and opportunities
+- Providing actionable insights for each day of the week`,
+        },
+        {
+          role: "user",
+          content: `Analyze this trend data and provide comprehensive insights: ${JSON.stringify(
+            trendData
+          )}`,
+        },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 2000,
+      temperature: 0.2,
+    });
+
+    return JSON.parse(response.choices[0].message.content);
+  } catch (error) {
+    console.error("Error generating trend analysis:", error);
+    throw new Error("Failed to generate trend analysis");
+  }
+}
+
+/**
+ * Generate alert analysis using GPT-4o
+ * @param {Object} alertData - Alert and warning data
+ * @returns {Promise<Object>} Alert analysis and recommendations
+ */
+async function generateAlertAnalysis(alertData) {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert HR professional specializing in employee wellness and burnout prevention. Analyze the provided alert data and generate urgent recommendations.
+
+Return a JSON object with the following structure:
+{
+  "alertSummary": "Overall alert assessment",
+  "urgentActions": [
+    {
+      "priority": "immediate|high|medium",
+      "action": "Specific action to take",
+      "target": "individual|team|management",
+      "timeline": "when to do this"
+    }
+  ],
+  "interventionStrategies": [
+    {
+      "type": "one_on_one|team_meeting|policy_change",
+      "description": "Strategy description",
+      "expectedOutcome": "What this should achieve"
+    }
+  ],
+  "preventionMeasures": [
+    {
+      "measure": "Preventive action",
+      "frequency": "daily|weekly|monthly",
+      "benefit": "How this helps prevent issues"
+    }
+  ],
+  "escalationPlan": {
+    "triggers": ["When to escalate"],
+    "contacts": ["Who to contact"],
+    "procedures": ["What procedures to follow"]
+  }
+}
+
+Focus on:
+- Immediate actions for urgent alerts
+- Long-term prevention strategies
+- Escalation procedures for serious cases
+- Team-level interventions`,
+        },
+        {
+          role: "user",
+          content: `Analyze this alert data and provide urgent recommendations: ${JSON.stringify(
+            alertData
+          )}`,
+        },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 1500,
+      temperature: 0.1,
+    });
+
+    return JSON.parse(response.choices[0].message.content);
+  } catch (error) {
+    console.error("Error generating alert analysis:", error);
+    throw new Error("Failed to generate alert analysis");
   }
 }
 
@@ -493,4 +701,6 @@ module.exports = {
   answerQuestion,
   analyzeCodeChanges,
   generateEngagementInsights,
+  generateTrendAnalysis,
+  generateAlertAnalysis,
 };
