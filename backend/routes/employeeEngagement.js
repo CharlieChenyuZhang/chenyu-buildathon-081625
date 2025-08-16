@@ -1,5 +1,6 @@
 const express = require("express");
 const { v4: uuidv4 } = require("uuid");
+const { WebClient } = require("@slack/web-api");
 const {
   analyzeSentiment,
   generateEngagementInsights,
@@ -7,35 +8,82 @@ const {
 
 const router = express.Router();
 
+// In-memory storage for workspaces (in production, use a database)
+let workspaces = [];
+let workspaceMessages = new Map(); // workspaceId -> messages
+
+// Initialize Slack client with environment variables
+const slackBotToken = process.env.SLACK_BOT_TOKEN;
+const defaultChannels = process.env.DEFAULT_SLACK_CHANNELS
+  ? process.env.DEFAULT_SLACK_CHANNELS.split(",")
+  : ["aifund-buildathon-081625"];
+
 // POST /api/employee-engagement/connect-slack
 // Connect Slack workspace and configure channels
 router.post("/connect-slack", async (req, res) => {
   try {
-    const { workspaceName, botToken, channels } = req.body;
+    const { workspaceName, channels } = req.body;
 
-    if (!workspaceName || !botToken || !channels || channels.length === 0) {
+    if (!workspaceName) {
       return res.status(400).json({
-        error: "Workspace name, bot token, and channels are required",
+        error: "Workspace name is required",
       });
     }
 
-    // TODO: Validate Slack token and save workspace configuration
-    // - Verify bot token with Slack API
-    // - Save workspace and channel configuration
-    // - Set up webhook subscriptions
+    if (!slackBotToken) {
+      return res.status(500).json({
+        error:
+          "Slack bot token not configured. Please set SLACK_BOT_TOKEN in your .env file.",
+      });
+    }
 
-    const workspace = {
-      id: uuidv4(),
-      name: workspaceName,
-      channels: channels,
-      connectedAt: new Date(),
-      status: "active",
-    };
+    // Validate Slack token by testing the API
+    const slack = new WebClient(slackBotToken);
 
-    res.json({
-      message: "Slack workspace connected successfully",
-      workspace: workspace,
-    });
+    try {
+      // Test the token by calling auth.test
+      const authTest = await slack.auth.test();
+
+      if (!authTest.ok) {
+        return res.status(400).json({
+          error: "Invalid Slack bot token",
+        });
+      }
+
+      // Get workspace info
+      const teamInfo = await slack.team.info();
+
+      const workspace = {
+        id: uuidv4(),
+        name: workspaceName,
+        slackTeamId: authTest.team_id,
+        channels: channels || defaultChannels,
+        connectedAt: new Date(),
+        status: "active",
+        botUserId: authTest.user_id,
+      };
+
+      // Store workspace
+      workspaces.push(workspace);
+      workspaceMessages.set(workspace.id, []);
+
+      res.json({
+        message: "Slack workspace connected successfully",
+        workspace: {
+          id: workspace.id,
+          name: workspace.name,
+          channels: workspace.channels,
+          connectedAt: workspace.connectedAt,
+          status: workspace.status,
+        },
+      });
+    } catch (slackError) {
+      console.error("Slack API error:", slackError);
+      return res.status(400).json({
+        error:
+          "Failed to validate Slack token. Please check your SLACK_BOT_TOKEN in .env file.",
+      });
+    }
   } catch (error) {
     console.error("Slack connection error:", error);
     res.status(500).json({ error: "Failed to connect Slack workspace" });
@@ -46,21 +94,266 @@ router.post("/connect-slack", async (req, res) => {
 // Get all connected Slack workspaces
 router.get("/workspaces", async (req, res) => {
   try {
-    // TODO: Fetch from database
-    const workspaces = [
-      {
-        id: "1",
-        name: "Acme Corp",
-        channels: ["general", "random", "engineering"],
-        connectedAt: new Date(),
-        status: "active",
-      },
-    ];
+    const workspaceList = workspaces.map((workspace) => ({
+      id: workspace.id,
+      name: workspace.name,
+      channels: workspace.channels,
+      connectedAt: workspace.connectedAt,
+      status: workspace.status,
+    }));
 
-    res.json({ workspaces });
+    res.json({ workspaces: workspaceList });
   } catch (error) {
     console.error("Error fetching workspaces:", error);
     res.status(500).json({ error: "Failed to fetch workspaces" });
+  }
+});
+
+// POST /api/employee-engagement/fetch-messages/:workspaceId
+// Fetch messages from specified channels
+router.post("/fetch-messages/:workspaceId", async (req, res) => {
+  try {
+    const { workspaceId } = req.params;
+    const { channels, limit = 100 } = req.body;
+
+    const workspace = workspaces.find((w) => w.id === workspaceId);
+    if (!workspace) {
+      return res.status(404).json({ error: "Workspace not found" });
+    }
+
+    const slack = new WebClient(slackBotToken);
+    const allMessages = [];
+    const channelsToFetch = channels || workspace.channels;
+
+    for (const channelName of channelsToFetch) {
+      try {
+        // First, get the channel ID by name
+        const conversationsList = await slack.conversations.list({
+          types: "public_channel,private_channel",
+        });
+
+        const channel = conversationsList.channels.find(
+          (ch) => ch.name === channelName.replace("#", "")
+        );
+
+        if (!channel) {
+          console.warn(`Channel ${channelName} not found`);
+          continue;
+        }
+
+        // Check if bot is in the channel, if not, invite it
+        try {
+          const botInfo = await slack.auth.test();
+          const botUserId = botInfo.user_id;
+          console.log(`Bot user ID: ${botUserId}`);
+
+          // Try to get channel info to see if bot is a member
+          const channelInfo = await slack.conversations.info({
+            channel: channel.id,
+          });
+
+          console.log(`Channel ${channelName} info:`, {
+            id: channel.id,
+            name: channel.name,
+            is_private: channelInfo.channel.is_private,
+            member_count: channelInfo.channel.num_members,
+            has_members: !!channelInfo.channel.members,
+          });
+
+          const isBotInChannel =
+            channelInfo.channel.members &&
+            channelInfo.channel.members.includes(botUserId);
+
+          console.log(`Bot in channel ${channelName}: ${isBotInChannel}`);
+
+          if (!isBotInChannel) {
+            console.log(
+              `Bot not in channel ${channelName}, attempting to join...`
+            );
+            try {
+              // For public channels, try to join
+              if (!channelInfo.channel.is_private) {
+                await slack.conversations.join({
+                  channel: channel.id,
+                });
+                console.log(
+                  `Successfully joined public channel ${channelName}`
+                );
+              } else {
+                console.log(
+                  `Channel ${channelName} is private. Bot needs to be invited manually.`
+                );
+                console.log(
+                  `Please invite the bot to #${channelName} using: /invite @your-bot-name`
+                );
+              }
+            } catch (joinError) {
+              console.warn(
+                `Could not auto-join channel ${channelName}:`,
+                joinError.message
+              );
+              if (joinError.data && joinError.data.error === "missing_scope") {
+                console.log(
+                  `Missing scope: ${joinError.data.needed}. Please add this scope to your Slack app.`
+                );
+              } else {
+                console.log(
+                  `Please manually invite the bot to #${channelName} using /invite @your-bot-name`
+                );
+              }
+            }
+          }
+        } catch (botCheckError) {
+          console.warn(
+            `Could not check bot membership in ${channelName}:`,
+            botCheckError.message
+          );
+        }
+
+        // Fetch messages from the channel
+        try {
+          const messagesResult = await slack.conversations.history({
+            channel: channel.id,
+            limit: limit,
+            inclusive: true,
+          });
+
+          if (messagesResult.ok && messagesResult.messages) {
+            const channelMessages = messagesResult.messages
+              .filter((msg) => msg.type === "message" && !msg.subtype) // Only regular messages
+              .map((msg) => ({
+                id: msg.ts,
+                userId: msg.user,
+                text: msg.text,
+                timestamp: new Date(parseFloat(msg.ts) * 1000),
+                channel: channelName,
+                reactions: msg.reactions || [],
+                threadTs: msg.thread_ts,
+                isThread: !!msg.thread_ts,
+              }));
+
+            console.log(`Channel ${channelName} - Main messages:`, {
+              totalMainMessages: channelMessages.length,
+              messagesWithThreads: channelMessages.filter((m) => m.threadTs)
+                .length,
+              messagesWithoutThreads: channelMessages.filter((m) => !m.threadTs)
+                .length,
+            });
+
+            // Fetch thread replies for messages that have threads
+            const threadMessages = [];
+            for (const message of channelMessages) {
+              if (message.threadTs) {
+                try {
+                  console.log(
+                    `Fetching thread replies for message ${message.id}`
+                  );
+                  const threadResult = await slack.conversations.replies({
+                    channel: channel.id,
+                    ts: message.threadTs,
+                    limit: 50, // Fetch up to 50 thread replies
+                  });
+
+                  if (threadResult.ok && threadResult.messages) {
+                    // Skip the first message (it's the parent message we already have)
+                    const replies = threadResult.messages.slice(1);
+                    const threadReplies = replies
+                      .filter(
+                        (reply) => reply.type === "message" && !reply.subtype
+                      )
+                      .map((reply) => ({
+                        id: reply.ts,
+                        userId: reply.user,
+                        text: reply.text,
+                        timestamp: new Date(parseFloat(reply.ts) * 1000),
+                        channel: channelName,
+                        reactions: reply.reactions || [],
+                        threadTs: message.threadTs,
+                        isThread: true,
+                        isThreadReply: true,
+                        parentMessageId: message.id,
+                      }));
+
+                    threadMessages.push(...threadReplies);
+                    console.log(
+                      `Fetched ${threadReplies.length} thread replies for message ${message.id}`
+                    );
+                  }
+                } catch (threadError) {
+                  console.warn(
+                    `Error fetching thread replies for message ${message.id}:`,
+                    threadError.message
+                  );
+                }
+              }
+            }
+
+            console.log(`Channel ${channelName} - Thread summary:`, {
+              totalThreadReplies: threadMessages.length,
+              threadsProcessed: channelMessages.filter((m) => m.threadTs)
+                .length,
+            });
+
+            allMessages.push(...channelMessages);
+            allMessages.push(...threadMessages);
+            console.log(
+              `Successfully fetched ${channelMessages.length} messages and ${threadMessages.length} thread replies from ${channelName}`
+            );
+          }
+        } catch (historyError) {
+          console.error(
+            `Error fetching messages from ${channelName}:`,
+            historyError.message
+          );
+          if (
+            historyError.data &&
+            historyError.data.error === "not_in_channel"
+          ) {
+            console.log(
+              `Bot is not in channel ${channelName}. Please invite the bot manually or ensure it has proper permissions.`
+            );
+          }
+        }
+      } catch (channelError) {
+        console.error(
+          `Error fetching messages from ${channelName}:`,
+          channelError
+        );
+      }
+    }
+
+    // Store messages for this workspace
+    workspaceMessages.set(workspaceId, allMessages);
+
+    console.log(`=== FINAL MESSAGE SUMMARY ===`);
+    console.log(`Total messages fetched: ${allMessages.length}`);
+    console.log(
+      `Main messages: ${allMessages.filter((m) => !m.isThreadReply).length}`
+    );
+    console.log(
+      `Thread replies: ${allMessages.filter((m) => m.isThreadReply).length}`
+    );
+    console.log(
+      `Messages with threads: ${
+        allMessages.filter((m) => m.threadTs && !m.isThreadReply).length
+      }`
+    );
+    console.log(
+      `Unique threads: ${
+        new Set(allMessages.filter((m) => m.threadTs).map((m) => m.threadTs))
+          .size
+      }`
+    );
+    console.log(`================================`);
+
+    res.json({
+      message: `Successfully fetched ${allMessages.length} messages`,
+      messageCount: allMessages.length,
+      channels: channelsToFetch,
+    });
+  } catch (error) {
+    console.error("Error fetching messages:", error);
+    res.status(500).json({ error: "Failed to fetch messages" });
   }
 });
 
@@ -75,7 +368,12 @@ router.post("/workspace/:id/channels", async (req, res) => {
       return res.status(400).json({ error: "Channels list is required" });
     }
 
-    // TODO: Update database and Slack subscriptions
+    const workspace = workspaces.find((w) => w.id === id);
+    if (!workspace) {
+      return res.status(404).json({ error: "Workspace not found" });
+    }
+
+    workspace.channels = channels;
 
     res.json({
       message: "Channels updated successfully",
@@ -95,13 +393,113 @@ router.get("/dashboard/:workspaceId", async (req, res) => {
     const { workspaceId } = req.params;
     const { week } = req.query; // Optional: specific week
 
-    // TODO: Fetch sentiment data from database
+    const workspace = workspaces.find((w) => w.id === workspaceId);
+    if (!workspace) {
+      return res.status(404).json({ error: "Workspace not found" });
+    }
+
+    const messages = workspaceMessages.get(workspaceId) || [];
+
+    // Analyze sentiment for messages if not already done
+    const processedMessages = [];
+    for (const message of messages.slice(0, 50)) {
+      // Limit to 50 for performance
+      try {
+        const sentimentResult = await analyzeSentiment(message.text);
+        processedMessages.push({
+          ...message,
+          sentiment: sentimentResult.confidence,
+          sentimentType: sentimentResult.sentiment,
+          emotions: sentimentResult.emotions || [],
+        });
+      } catch (error) {
+        console.error("Error analyzing sentiment for message:", error);
+        processedMessages.push({
+          ...message,
+          sentiment: 0.5,
+          sentimentType: "neutral",
+          emotions: [],
+        });
+      }
+    }
+
+    // Calculate metrics
+    const totalMessages = messages.length;
+    const uniqueUsers = new Set(messages.map((m) => m.userId)).size;
+    const averageSentiment =
+      processedMessages.length > 0
+        ? processedMessages.reduce((sum, m) => sum + m.sentiment, 0) /
+          processedMessages.length
+        : 0.5;
+
+    // Thread statistics
+    const threadMessages = messages.filter((m) => m.isThreadReply);
+    const parentMessages = messages.filter(
+      (m) => m.threadTs && !m.isThreadReply
+    );
+    const mainMessages = messages.filter((m) => !m.isThreadReply); // Messages that are not thread replies
+    const threadCount = parentMessages.length;
+    const threadReplyCount = threadMessages.length;
+    const mainMessageCount = mainMessages.length;
+    const avgRepliesPerThread =
+      threadCount > 0 ? (threadReplyCount / threadCount).toFixed(1) : 0;
+
+    console.log(`Message Analysis:`, {
+      totalMessages,
+      mainMessageCount,
+      threadReplyCount,
+      threadCount,
+      uniqueUsers,
+      averageSentiment: (averageSentiment * 100).toFixed(1) + "%",
+    });
+
+    // Group by channel
+    const channelStats = {};
+    messages.forEach((msg) => {
+      if (!channelStats[msg.channel]) {
+        channelStats[msg.channel] = {
+          count: 0,
+          messages: [],
+          threadCount: 0,
+          threadReplyCount: 0,
+        };
+      }
+      channelStats[msg.channel].count++;
+      channelStats[msg.channel].messages.push(msg);
+
+      if (msg.isThreadReply) {
+        channelStats[msg.channel].threadReplyCount++;
+      } else if (msg.threadTs) {
+        channelStats[msg.channel].threadCount++;
+      }
+    });
+
+    const topChannels = Object.entries(channelStats)
+      .map(([name, stats]) => ({
+        name,
+        messageCount: stats.count,
+        threadCount: stats.threadCount,
+        threadReplyCount: stats.threadReplyCount,
+        sentiment: 0.75, // Placeholder - would calculate from actual sentiment data
+      }))
+      .sort((a, b) => b.messageCount - a.messageCount)
+      .slice(0, 5);
+
     const dashboard = {
       workspaceId: workspaceId,
       week: week || "current",
-      overallSentiment: 0.75, // 0-1 scale
-      messageCount: 1250,
-      activeUsers: 45,
+      overallSentiment: averageSentiment,
+      messageCount: totalMessages,
+      activeUsers: uniqueUsers,
+      threadStats: {
+        threadCount: threadCount,
+        threadReplyCount: threadReplyCount,
+        avgRepliesPerThread: avgRepliesPerThread,
+        threadEngagement:
+          threadCount > 0
+            ? ((threadReplyCount / totalMessages) * 100).toFixed(1)
+            : 0,
+      },
       trends: {
         monday: 0.72,
         tuesday: 0.78,
@@ -109,11 +507,7 @@ router.get("/dashboard/:workspaceId", async (req, res) => {
         thursday: 0.69,
         friday: 0.74,
       },
-      topChannels: [
-        { name: "general", sentiment: 0.78, messageCount: 450 },
-        { name: "engineering", sentiment: 0.82, messageCount: 320 },
-        { name: "random", sentiment: 0.65, messageCount: 280 },
-      ],
+      topChannels: topChannels,
       burnoutWarnings: [
         {
           userId: "U123456",
@@ -123,9 +517,12 @@ router.get("/dashboard/:workspaceId", async (req, res) => {
         },
       ],
       insights: [
-        "Team morale improved 15% this week",
-        "Engineering channel shows highest engagement",
-        "Consider addressing workload concerns in general channel",
+        `Team has ${totalMessages} total messages this week`,
+        `Main messages: ${mainMessageCount}, Thread replies: ${threadReplyCount}`,
+        `Active users: ${uniqueUsers}`,
+        `Average sentiment: ${(averageSentiment * 100).toFixed(1)}%`,
+        `Thread engagement: ${threadCount} threads with ${threadReplyCount} replies`,
+        `Average ${avgRepliesPerThread} replies per thread`,
       ],
     };
 
@@ -278,15 +675,16 @@ router.post("/insights/:workspaceId", async (req, res) => {
       },
     };
 
+    let insights;
     try {
-      const insights = await generateEngagementInsights(engagementData);
+      insights = await generateEngagementInsights(engagementData);
       insights.workspaceId = workspaceId;
       insights.timeframe = timeframe;
       insights.generatedAt = new Date();
     } catch (error) {
       console.error("Error generating insights:", error);
       // Fallback to mock insights if AI generation fails
-      const insights = {
+      insights = {
         workspaceId: workspaceId,
         timeframe: timeframe,
         generatedAt: new Date(),

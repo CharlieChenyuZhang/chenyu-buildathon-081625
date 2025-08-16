@@ -1,0 +1,44 @@
+{
+  "id": "5e688bd5-69a6-48f1-b3b0-f95b28dcbf7b",
+  "transcribedText": "What I want to do today, since this is Build as a Startup School, is share with you some lessons I've learned about building startups at AI Fund. AI Fund is a venture studio, and we build an average of about one startup per month. And because we co-found the startups, we're in there writing code, talking to customers, designing our features, determining pricing. And so we've done a lot of reps of not just watching others build startups, but actually being in the weeds, building startups with entrepreneurs. And what I want to do today is share with you some of the lessons I've learned building startups, especially around this changing AI technology and what it enables. And we focus on the theme of speed. So it turns out that for those of you that want to build a startup, I think a strong predictor for startups' odds of success is execution speed. And I have a lot of respect for the entrepreneurs and executives that can just do things really quickly. And new AI technology is enabling startups to go much faster. So what I hope to do is share with you some of those best practices, which are frankly changing every two to three months still, to let you get that speed that hopefully lets you have a higher odds of success. Before diving into speed, a lot of people ask me, hey Andrew, where are the opportunities for startups? So this is what I think of as an AI stack, where at the lowest level are the semiconductor companies, then the clouds are hyperscalers built on top of that, a lot of the AI foundation model companies built on top of that, and even though a lot of PR excitement and hype has been on these technology layers, it turns out that almost by definition, the biggest opportunities have to be at the application layer, because we actually need the applications to generate even more revenue so that they can afford to pay the foundation, cloud and semiconductor technology layers. So for whatever reason, media and social media tends not to talk about the application layer as much. But for those of you thinking of building startups, almost by definition, the biggest opportunities have to be there, although of course, the opportunities are all layers of the stack. One of the things that's changed a lot over the last year, and in terms of AI tech trends, if you ask me what's the most important tech trend in AI, I would say it's the rise of agentic AI. And about a year and a half ago, when I started to go around and give talks to try to convince people that AI agents might be a thing, I did not realize that around last summer, a bunch of marketers would get a hold of this term and use it as a sticker and slap it on everything in sight, which made it almost lose some of its meaning. But I want to share with you from a technical perspective, why I think agentic AI is exciting and important and also opens up a lot more startup opportunities. So it turns out that the way a lot of us use OMs is to prompt it, to have it generate output. And the way we have an OOM output something is as if you're going to a human, or in this case an AI, and asking it to please type out an essay for you by writing from the first word to the last word.\n",
+  "slideStructure": {
+    "slides": [
+      {
+        "title": "Introduction to Building Startups",
+        "content": "Overview of lessons learned from building startups at AI Fund, focusing on leveraging AI tech and execution speed.",
+        "speakerNotes": "Welcome to Startup School. Today, I aim to share key lessons from our experiences at AI Fund, a venture studio that launches approximately one startup monthly. Our focus will be on execution speed and utilizing AI technology to boost startup success."
+      },
+      {
+        "title": "Experience at AI Fund",
+        "content": "Hands-on approach in co-founding startups, involving coding, customer engagement, feature design, and pricing strategies.",
+        "speakerNotes": "At AI Fund, we are deeply involved in the startup creation process, gaining practical insights by engaging directly with coding, customer feedback, and strategic business elements."
+      },
+      {
+        "title": "The Importance of Speed in Startups",
+        "content": "Execution speed is a key predictor of startup success, amplified by new AI technologies enabling faster processes.",
+        "speakerNotes": "A rapid execution pace is crucial for a startup's success. AI technologies offer new tools and methods to enhance the speed of operation, allowing startups to adapt and grow more efficiently."
+      },
+      {
+        "title": "Opportunities in the AI Stack",
+        "content": "The AI stack ranges from semiconductors to AI foundation models and the underexplored application layer, which presents significant opportunities.",
+        "speakerNotes": "While there is excitement around technology layers in AI, the application layer holds the most potential for generating substantial revenue and opportunities for startups."
+      },
+      {
+        "title": "Emergence of Agentic AI",
+        "content": "Agentic AI is a crucial trend, expanding startup opportunities by offering interactive, adaptive AI solutions.",
+        "speakerNotes": "Agentic AI has become a vital trend in AI development, creating new possibilities for engaging and effective AI-driven applications. Despite market hype, its potential for innovation remains strong in startup contexts."
+      },
+      {
+        "title": "Utilizing AI for Output Generation",
+        "content": "AI models can be used interactively to generate outputs, mimicking human-like processing and response systems.",
+        "speakerNotes": "AI's role in mimicking human interactions to produce outputs represents a significant advancement, underscoring the importance of integrating AI technologies into modern business models to drive efficiency and innovation."
+      },
+      {
+        "title": "Conclusion & Future Insights",
+        "content": "Reflect on the ongoing evolution of AI technologies and their impact on startup innovation and success strategies.",
+        "speakerNotes": "As AI technologies continue to evolve, staying informed and adaptive will be crucial for leveraging these tools effectively within startup environments to maximize innovation and achieve business success."
+      }
+    ]
+  },
+  "processedAt": "2025-08-16T21:26:24.436Z"
+}

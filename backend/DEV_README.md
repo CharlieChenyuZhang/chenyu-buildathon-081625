@@ -106,7 +106,7 @@ Customize development settings in `dev.config.js`:
 ```javascript
 module.exports = {
   server: {
-    port: 5001,
+    port: 8080,
     cors: {
       origin: ["http://localhost:3000"],
     },
@@ -135,8 +135,8 @@ module.exports = {
 ### Port Already in Use
 
 ```bash
-# Find process using port 5001
-lsof -i :5001
+# Find process using port 8080
+lsof -i :8080
 
 # Kill the process
 kill -9 <PID>
@@ -193,20 +193,20 @@ Use the API endpoints or frontend to test your changes.
 ### Health Check
 
 ```bash
-curl http://localhost:5001/api/health
+curl http://localhost:8080/api/health
 ```
 
 ### Storage Info
 
 ```bash
-curl http://localhost:5001/api/visual-memory/storage-info
+curl http://localhost:8080/api/visual-memory/storage-info
 ```
 
 ### Upload Test
 
 ```bash
 curl -X POST -F "screenshots=@test-image.jpg" \
-  http://localhost:5001/api/visual-memory/upload-screenshots
+  http://localhost:8080/api/visual-memory/upload-screenshots
 ```
 
 ## Performance Tips

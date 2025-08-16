@@ -1,4 +1,5 @@
 const OpenAI = require("openai");
+const fs = require("fs");
 
 // Check if OpenAI API key is configured
 if (!process.env.OPENAI_API_KEY) {
@@ -98,14 +99,14 @@ async function generateVisualDescription(imageBuffer, imageType = "png") {
 
 /**
  * Transcribe audio using Whisper
- * @param {Buffer} audioBuffer - Audio buffer
+ * @param {string} filePath - Path to audio file
  * @param {string} audioType - Audio type (mp3, wav, etc.)
  * @returns {Promise<string>} Transcribed text
  */
-async function transcribeAudio(audioBuffer, audioType = "mp3") {
+async function transcribeAudio(filePath, audioType = "mp3") {
   try {
     const response = await openai.audio.transcriptions.create({
-      file: Buffer.from(audioBuffer),
+      file: fs.createReadStream(filePath),
       model: "whisper-1",
       response_format: "text",
     });
@@ -125,7 +126,7 @@ async function transcribeAudio(audioBuffer, audioType = "mp3") {
 async function generateSlideStructure(content) {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -161,21 +162,83 @@ async function analyzeSentiment(text) {
         {
           role: "system",
           content:
-            "Analyze the sentiment of the given text. Return a JSON object with sentiment (positive/negative/neutral), confidence (0-1), and emotions array.",
+            "Analyze the sentiment of the given text. Return a JSON object with sentiment (positive/negative/neutral), confidence (0-1), and emotions array. Format your response as valid JSON only.",
         },
         {
           role: "user",
           content: `Analyze sentiment: ${text}`,
         },
       ],
-      response_format: { type: "json_object" },
       max_tokens: 200,
     });
 
-    return JSON.parse(response.choices[0].message.content);
+    const content = response.choices[0].message.content;
+
+    try {
+      return JSON.parse(content);
+    } catch (parseError) {
+      console.warn("Failed to parse JSON response, using fallback:", content);
+      // Fallback: simple sentiment analysis
+      const lowerText = text.toLowerCase();
+      let sentiment = "neutral";
+      let confidence = 0.5;
+
+      const positiveWords = [
+        "good",
+        "great",
+        "awesome",
+        "excellent",
+        "happy",
+        "love",
+        "like",
+        "thanks",
+        "thank you",
+        "👍",
+        "😊",
+        "🎉",
+      ];
+      const negativeWords = [
+        "bad",
+        "terrible",
+        "awful",
+        "hate",
+        "dislike",
+        "angry",
+        "sad",
+        "😔",
+        "😤",
+        "😴",
+      ];
+
+      const positiveCount = positiveWords.filter((word) =>
+        lowerText.includes(word)
+      ).length;
+      const negativeCount = negativeWords.filter((word) =>
+        lowerText.includes(word)
+      ).length;
+
+      if (positiveCount > negativeCount) {
+        sentiment = "positive";
+        confidence = Math.min(0.8, 0.5 + positiveCount * 0.1);
+      } else if (negativeCount > positiveCount) {
+        sentiment = "negative";
+        confidence = Math.min(0.8, 0.5 + negativeCount * 0.1);
+      }
+
+      return {
+        sentiment,
+        confidence,
+        emotions: [],
+      };
+    }
   } catch (error) {
     console.error("Error analyzing sentiment:", error);
-    throw new Error("Failed to analyze sentiment");
+    // Return neutral sentiment as fallback
+    return {
+      sentiment: "neutral",
+      confidence: 0.5,
+      emotions: [],
+    };
   }
 }
 

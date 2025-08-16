@@ -1,0 +1,13 @@
+version: 1.0
+runtime: nodejs18
+build:
+  commands:
+    - npm ci
+run:
+  command: npm start
+health_check:
+  path: /health
+  interval: 10
+  timeout: 5
+  healthy_threshold: 1
+  unhealthy_threshold: 3

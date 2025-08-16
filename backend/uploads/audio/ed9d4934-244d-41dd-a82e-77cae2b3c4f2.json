@@ -1,0 +1,39 @@
+{
+  "id": "ed9d4934-244d-41dd-a82e-77cae2b3c4f2",
+  "transcribedText": "What I want to do today, since this is Build as a Startup School, is share with you some lessons I've learned about building startups at AI Fund. AI Fund is a venture studio, and we build an average of about one startup per month. And because we co-found the startups, we're in there writing code, talking to customers, designing our features, determining pricing. And so we've done a lot of reps of not just watching others build startups, but actually being in the weeds, building startups with entrepreneurs. And what I want to do today is share with you some of the lessons I've learned building startups, especially around this changing AI technology and what it enables. And we focus on the theme of speed. So it turns out that for those of you that want to build a startup, I think a strong predictor for startups' odds of success is execution speed. And I have a lot of respect for the entrepreneurs and executives that can just do things really quickly. And new AI technology is enabling startups to go much faster. So what I hope to do is share with you some of those best practices, which are frankly changing every two to three months still, to let you get that speed that hopefully lets you have a higher odds of success. Before diving into speed, a lot of people ask me, hey, Andrew, where are the opportunities for startups? So this is what I think of as an AI stack, where at the lowest level are the semiconductor companies, then the clouds are hyperscalers built on top of that, a lot of the AI foundation model companies built on top of that, and even though a lot of PR excitement and hype has been on these technology layers, it turns out that almost by definition, the biggest opportunities have to be at the application layer, because we actually need the applications to generate even more revenue so that they can afford to pay the foundation, cloud and semiconductor technology layers. So for whatever reason, media and social media tends not to talk about the application layer as much. But for those of you thinking of building startups, almost by definition, the biggest opportunities have to be there, although of course, the opportunities are all layers of the stack. One of the things that's changed a lot over the last year, and in terms of AI tech trends, if you ask me what's the most important tech trend in AI, I would say it's the rise of agentic AI. And about a year and a half ago, when I started to go around and give talks to try to convince people that AI agents might be a thing, I did not realize that around last summer, a bunch of marketers would get a hold of this term and use it as a sticker and slap it on everything in sight, which made it almost lose some of its meaning. But I want to share with you from a technical perspective, why I think agentic AI is exciting and important and also opens up a lot more startup opportunities. So it turns out that the way a lot of us use OMs is to prompt it, to have it generate output. The way we have an OOM output something is as if you're going to a human or in this case an AI and ask it to please type out an essay for you by writing from the first word.\n",
+  "slideStructure": {
+    "slides": [
+      {
+        "title": "Introduction to Building Startups",
+        "content": "Introduction to lessons learned in building startups at AI Fund, a venture studio that builds about one startup per month.",
+        "speakerNotes": "Today, I'll share insights from my experience at AI Fund, where we're actively involved in every aspect of startup development."
+      },
+      {
+        "title": "The Role of Speed in Startup Success",
+        "content": "Execution speed as a critical factor for startup success, and how AI technology enhances this.",
+        "speakerNotes": "Emphasize the importance of speed. Discuss how AI allows faster execution, which can be a strong indicator of success for startups."
+      },
+      {
+        "title": "Opportunities within the AI Stack",
+        "content": "AI stack consists of semiconductor companies, cloud services, foundation models, and the application layer. The biggest opportunities lie in the application layer.",
+        "speakerNotes": "While the media focuses on technological layers, the application layer holds significant opportunities as it drives revenue for the entire stack. Encourage focusing on applications for startup ideas."
+      },
+      {
+        "title": "AI Technology Trends: Agentic AI",
+        "content": "Agentic AI as a significant trend, despite overuse of the term, it's technically significant and offers many opportunities.",
+        "speakerNotes": "Despite marketing overuse, agentic AI is exciting due to its potential to create new startup opportunities. Explain the true technical potentials of agentic AI."
+      },
+      {
+        "title": "Case Examples and Practical Advice",
+        "content": "Share specific best practices in leveraging AI for speed and success in startup growth.",
+        "speakerNotes": "Provide practical examples of AI-accelerated startup methodologies. Novelties in AI are making impactful changes every few months, keeping startups agile is key."
+      },
+      {
+        "title": "Q&A and Closing Remarks",
+        "content": "Open the floor for questions and discuss any remaining insights.",
+        "speakerNotes": "Encourage questions on AI, startup strategies, and any of the topics discussed. Summarize key points before concluding."
+      }
+    ]
+  },
+  "processedAt": "2025-08-16T22:07:09.210Z"
+}

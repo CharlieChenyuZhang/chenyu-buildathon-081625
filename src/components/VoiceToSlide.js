@@ -3,20 +3,44 @@ import axios from "axios";
 import "./VoiceToSlide.css";
 
 function VoiceToSlide() {
+  const [currentStep, setCurrentStep] = useState(1);
   const [audioFile, setAudioFile] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [slideDeck, setSlideDeck] = useState(null);
   const [audioId, setAudioId] = useState(null);
   const [recordingTime, setRecordingTime] = useState(0);
   const [generationHistory, setGenerationHistory] = useState([]);
+  const [processingStatus, setProcessingStatus] = useState("");
+  const [transcribedText, setTranscribedText] = useState("");
+  const [showPresentation, setShowPresentation] = useState(false);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadFormat, setDownloadFormat] = useState("");
 
   const mediaRecorderRef = useRef(null);
   const recordingIntervalRef = useRef(null);
+  const pollingIntervalRef = useRef(null);
+
+  const steps = [
+    { id: 1, title: "Add Audio", description: "Upload or record your audio" },
+    { id: 2, title: "Review", description: "Check transcription & preview" },
+    { id: 3, title: "Generate", description: "Create your slide deck" },
+    { id: 4, title: "Download", description: "Get your presentation" },
+  ];
+
+  const triggerFileInput = () => {
+    const fileInput = document.getElementById("audio-file-upload");
+    if (fileInput) {
+      fileInput.click();
+    }
+  };
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
+    console.log("Selected file:", file);
     setAudioFile(file);
   };
 
@@ -26,9 +50,49 @@ function VoiceToSlide() {
       return;
     }
 
+    // Validate file type
+    const allowedTypes = [
+      "audio/mpeg",
+      "audio/mp3",
+      "audio/wav",
+      "audio/wave",
+      "audio/x-wav",
+      "audio/mp4",
+      "audio/aac",
+      "audio/ogg",
+      "audio/webm",
+      "audio/flac",
+      "audio/x-m4a",
+    ];
+    if (
+      !allowedTypes.includes(audioFile.type) &&
+      !audioFile.name.match(/\.(mp3|wav|m4a|aac|ogg|webm|flac)$/i)
+    ) {
+      alert(
+        "Please select a valid audio file (MP3, WAV, M4A, AAC, OGG, WEBM, FLAC)"
+      );
+      return;
+    }
+
+    // Validate file size (50MB limit)
+    if (audioFile.size > 50 * 1024 * 1024) {
+      alert("File size must be less than 50MB");
+      return;
+    }
+
     setIsUploading(true);
+    setProcessingStatus("Processing your audio...");
     const formData = new FormData();
     formData.append("audio", audioFile);
+
+    console.log(
+      "Uploading file:",
+      audioFile.name,
+      "Size:",
+      audioFile.size,
+      "Type:",
+      audioFile.type
+    );
 
     try {
       const response = await axios.post(
@@ -42,10 +106,28 @@ function VoiceToSlide() {
       );
 
       setAudioId(response.data.file.id);
-      alert("Audio uploaded successfully! Processing will begin shortly.");
+
+      // Check if transcription is available immediately
+      if (response.data.file.transcribedText) {
+        setTranscribedText(response.data.file.transcribedText);
+        setProcessingStatus("Audio processed successfully!");
+        setCurrentStep(2);
+      } else {
+        // If transcription is not available, poll for it
+        setTranscribedText("Processing transcription...");
+        setProcessingStatus("Processing your audio...");
+        setCurrentStep(2);
+        pollForTranscription(response.data.file.id);
+      }
     } catch (error) {
       console.error("Upload error:", error);
-      alert("Failed to upload audio");
+      const errorMessage =
+        error.response?.data?.details ||
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to upload audio";
+      setProcessingStatus(`Failed to upload audio: ${errorMessage}`);
+      alert(`Failed to upload audio: ${errorMessage}`);
     } finally {
       setIsUploading(false);
     }
@@ -92,9 +174,16 @@ function VoiceToSlide() {
 
   const handleRecordedAudio = async (blob) => {
     try {
+      setIsProcessing(true);
+      setProcessingStatus("Processing your recording...");
+
+      // Convert blob to file
+      const audioFile = new File([blob], `recorded-audio-${Date.now()}.wav`, {
+        type: "audio/wav",
+      });
+
       const formData = new FormData();
-      formData.append("audioBlob", blob);
-      formData.append("duration", recordingTime);
+      formData.append("audioBlob", audioFile);
 
       const response = await axios.post(
         "/api/voice-to-slide/record-audio",
@@ -107,10 +196,30 @@ function VoiceToSlide() {
       );
 
       setAudioId(response.data.audio.id);
-      alert("Audio recorded successfully! Processing will begin shortly.");
+
+      // Check if transcription is available immediately
+      if (response.data.audio.transcribedText) {
+        setTranscribedText(response.data.audio.transcribedText);
+        setProcessingStatus("Recording processed successfully!");
+        setCurrentStep(2);
+      } else {
+        // If transcription is not available, poll for it
+        setTranscribedText("Processing transcription...");
+        setProcessingStatus("Processing your recording...");
+        setCurrentStep(2);
+        pollForTranscription(response.data.audio.id);
+      }
     } catch (error) {
       console.error("Recording upload error:", error);
-      alert("Failed to save recorded audio");
+      const errorMessage =
+        error.response?.data?.details ||
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to save recorded audio";
+      setProcessingStatus(`Failed to save recorded audio: ${errorMessage}`);
+      alert(`Failed to save recorded audio: ${errorMessage}`);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -121,6 +230,7 @@ function VoiceToSlide() {
     }
 
     setIsGenerating(true);
+    setProcessingStatus("Creating your slide deck...");
     try {
       const response = await axios.post("/api/voice-to-slide/generate-slides", {
         audioId: audioId,
@@ -132,9 +242,11 @@ function VoiceToSlide() {
 
       setSlideDeck(response.data.deck);
       setGenerationHistory((prev) => [response.data.deck, ...prev]);
-      alert("Slide deck generated successfully!");
+      setProcessingStatus("Slide deck created successfully!");
+      setCurrentStep(4);
     } catch (error) {
       console.error("Generation error:", error);
+      setProcessingStatus("Failed to generate slides");
       alert("Failed to generate slides");
     } finally {
       setIsGenerating(false);
@@ -144,9 +256,67 @@ function VoiceToSlide() {
   const downloadSlides = async (format = "html") => {
     if (!slideDeck) return;
 
+    setIsDownloading(true);
+    setDownloadFormat(format);
+
     try {
+      console.log(`Downloading slides in ${format} format...`);
+
       const response = await axios.get(
         `/api/voice-to-slide/deck/${slideDeck.id}/download?format=${format}`,
+        {
+          responseType: "blob",
+          timeout: 60000, // 60 second timeout for PDF generation
+        }
+      );
+
+      console.log("Download response received:", response.headers);
+
+      // Check if we got a PDF or HTML file
+      const contentType = response.headers["content-type"];
+      let actualFormat = format;
+
+      if (contentType && contentType.includes("text/html")) {
+        actualFormat = "html";
+      } else if (contentType && contentType.includes("application/pdf")) {
+        actualFormat = "pdf";
+      }
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `slides.${actualFormat}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      // Clean up the URL object
+      window.URL.revokeObjectURL(url);
+
+      console.log(`Download completed: slides.${actualFormat}`);
+    } catch (error) {
+      console.error("Download error:", error);
+
+      if (format === "pdf") {
+        // If PDF fails, try to provide helpful error message
+        alert(
+          "PDF generation failed. The system will provide an HTML file that you can convert to PDF using your browser's print function (Ctrl+P / Cmd+P)."
+        );
+      } else {
+        alert("Failed to download slides");
+      }
+    } finally {
+      setIsDownloading(false);
+      setDownloadFormat("");
+    }
+  };
+
+  const downloadSpeakerNotes = async () => {
+    if (!slideDeck) return;
+
+    try {
+      const response = await axios.get(
+        `/api/voice-to-slide/deck/${slideDeck.id}/speaker-notes`,
         {
           responseType: "blob",
         }
@@ -155,13 +325,13 @@ function VoiceToSlide() {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `slides.${format}`);
+      link.setAttribute("download", `speaker-notes.txt`);
       document.body.appendChild(link);
       link.click();
       link.remove();
     } catch (error) {
-      console.error("Download error:", error);
-      alert("Failed to download slides");
+      console.error("Download speaker notes error:", error);
+      alert("Failed to download speaker notes");
     }
   };
 
@@ -184,105 +354,427 @@ function VoiceToSlide() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  return (
-    <div className="voice-to-slide project-component">
-      <h1>Voice-to-Slide Generator</h1>
-      <p>Generate a polished slide deck from a 3-minute spoken prompt.</p>
+  const pollForTranscription = async (audioId) => {
+    let attempts = 0;
+    const maxAttempts = 30; // 30 seconds max
 
-      <div className="section audio-input-section">
-        <h2>Audio Input</h2>
+    const poll = async () => {
+      try {
+        console.log(`Polling attempt ${attempts + 1} for audioId:`, audioId);
+        const response = await axios.get(
+          `/api/voice-to-slide/status/${audioId}`
+        );
 
-        <div className="upload-section">
-          <h3>Upload Audio File</h3>
+        console.log("Status response:", response.data);
+
+        if (
+          response.data.status.status === "completed" ||
+          response.data.status.status === "partial"
+        ) {
+          // Check if transcription is available in the status response
+          if (response.data.status.transcribedText) {
+            console.log(
+              "Found transcription in status response:",
+              response.data.status.transcribedText.substring(0, 100) + "..."
+            );
+            setTranscribedText(response.data.status.transcribedText);
+            setProcessingStatus("Audio processed successfully!");
+            clearInterval(pollingIntervalRef.current);
+            return;
+          }
+
+          // Fallback: Try to get the transcription from the separate endpoint
+          try {
+            const dataResponse = await axios.get(
+              `/api/voice-to-slide/transcription/${audioId}`
+            );
+            if (dataResponse.data.transcribedText) {
+              setTranscribedText(dataResponse.data.transcribedText);
+              setProcessingStatus("Audio processed successfully!");
+              clearInterval(pollingIntervalRef.current);
+              return;
+            }
+          } catch (dataError) {
+            console.log("Could not fetch transcription data:", dataError);
+          }
+        }
+
+        attempts++;
+        if (attempts >= maxAttempts) {
+          setTranscribedText("Transcription failed. Please try again.");
+          setProcessingStatus("Transcription failed");
+          clearInterval(pollingIntervalRef.current);
+        }
+      } catch (error) {
+        console.error("Polling error:", error);
+        attempts++;
+        if (attempts >= maxAttempts) {
+          setTranscribedText("Transcription failed. Please try again.");
+          setProcessingStatus("Transcription failed");
+          clearInterval(pollingIntervalRef.current);
+        }
+      }
+    };
+
+    // Start polling every second
+    pollingIntervalRef.current = setInterval(poll, 1000);
+  };
+
+  const nextSlide = () => {
+    if (slideDeck && currentSlideIndex < slideDeck.slides.length - 1) {
+      setCurrentSlideIndex(currentSlideIndex + 1);
+    }
+  };
+
+  const prevSlide = () => {
+    if (currentSlideIndex > 0) {
+      setCurrentSlideIndex(currentSlideIndex - 1);
+    }
+  };
+
+  const goToSlide = (index) => {
+    setCurrentSlideIndex(index);
+  };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  const renderPresentation = () => {
+    if (!slideDeck || !showPresentation) return null;
+
+    const currentSlide = slideDeck.slides[currentSlideIndex];
+
+    return (
+      <div className="presentation-overlay">
+        <div className="presentation-container">
+          <div className="presentation-header">
+            <div className="presentation-info">
+              <span className="slide-counter">
+                {currentSlideIndex + 1} of {slideDeck.slides.length}
+              </span>
+              <span className="presentation-title">
+                Voice-to-Slide Presentation
+              </span>
+            </div>
+            <div className="presentation-controls">
+              <button
+                onClick={() => setShowPresentation(false)}
+                className="control-btn"
+              >
+                ✕
+              </button>
+              <button onClick={toggleFullscreen} className="control-btn">
+                ⛶
+              </button>
+            </div>
+          </div>
+
+          <div className="slide-container">
+            <div className="slide-content">
+              <h1 className="slide-title">{currentSlide.title}</h1>
+              <div className="slide-body">
+                <p className="slide-text">{currentSlide.content}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="presentation-footer">
+            <button
+              onClick={prevSlide}
+              disabled={currentSlideIndex === 0}
+              className="nav-btn"
+            >
+              ← Previous
+            </button>
+
+            <div className="slide-thumbnails">
+              {slideDeck.slides.map((slide, index) => (
+                <button
+                  key={slide.id}
+                  onClick={() => goToSlide(index)}
+                  className={`thumbnail ${
+                    index === currentSlideIndex ? "active" : ""
+                  }`}
+                >
+                  {index + 1}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={nextSlide}
+              disabled={currentSlideIndex === slideDeck.slides.length - 1}
+              className="nav-btn"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderStepIndicator = () => (
+    <div className="step-indicator">
+      {steps.map((step, index) => (
+        <div key={step.id} className="step-item">
+          <div
+            className={`step-circle ${currentStep >= step.id ? "active" : ""} ${
+              currentStep > step.id ? "completed" : ""
+            }`}
+          >
+            {currentStep > step.id ? "✓" : step.id}
+          </div>
+          <div className="step-info">
+            <h4
+              className={`step-title ${currentStep >= step.id ? "active" : ""}`}
+            >
+              {step.title}
+            </h4>
+            <p
+              className={`step-description ${
+                currentStep >= step.id ? "active" : ""
+              }`}
+            >
+              {step.description}
+            </p>
+          </div>
+          {index < steps.length - 1 && (
+            <div
+              className={`step-connector ${
+                currentStep > step.id ? "active" : ""
+              }`}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderStep1 = () => (
+    <div className="step-content">
+      <div className="step-header">
+        <h2>Add Your Audio</h2>
+        <p>Upload an audio file or record directly in your browser</p>
+      </div>
+
+      {processingStatus && (
+        <div className="status-banner">
+          <div className="status-content">
+            {isProcessing || isUploading ? (
+              <div className="loading-spinner">⏳</div>
+            ) : (
+              <div className="status-icon">✓</div>
+            )}
+            <span className="status-text">{processingStatus}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="audio-input-grid">
+        <div className="input-card">
+          <div className="card-header">
+            <div className="card-icon">📁</div>
+            <h3>Upload Audio</h3>
+          </div>
           <div className="upload-area">
             <input
               type="file"
+              id="audio-file-upload"
               accept="audio/*"
               onChange={handleFileSelect}
               className="file-input"
+              style={{ display: "none" }}
             />
-            <button
-              onClick={handleUpload}
-              disabled={isUploading || !audioFile}
-              className={`upload-btn ${isUploading ? 'loading' : ''}`}
-            >
-              {isUploading ? "Uploading..." : "Upload Audio"}
-            </button>
-          </div>
-          {audioFile && (
-            <div className="selected-files">
-              <h3>Selected File</h3>
-              <ul>
-                <li>{audioFile.name}</li>
-              </ul>
+            <div className="upload-zone" onClick={triggerFileInput}>
+              <div className="upload-content">
+                <div className="upload-icon">🎵</div>
+                <p className="upload-text">Choose an audio file</p>
+                <p className="upload-hint">
+                  MP3, WAV, M4A, AAC, OGG, WEBM, FLAC
+                </p>
+              </div>
             </div>
-          )}
+            {audioFile && (
+              <div className="file-preview">
+                <div className="file-info">
+                  <span className="file-name">{audioFile.name}</span>
+                  <span className="file-size">
+                    {(audioFile.size / 1024 / 1024).toFixed(2)} MB
+                  </span>
+                </div>
+                {isUploading ? (
+                  <div className="loading-container">
+                    <div className="loading-spinner">⏳</div>
+                  </div>
+                ) : (
+                  <button onClick={handleUpload} className="primary-button">
+                    Process Audio
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="record-section">
-          <h3>Record Audio</h3>
+        <div className="input-card">
+          <div className="card-header">
+            <div className="card-icon">🎤</div>
+            <h3>Record Audio</h3>
+          </div>
           <div className="record-area">
             <button
               onClick={isRecording ? stopRecording : startRecording}
-              className={`record-btn ${isRecording ? "recording" : ""}`}
+              className={`record-button ${isRecording ? "recording" : ""}`}
             >
-              {isRecording ? "Stop Recording" : "Start Recording"}
+              <div className="record-icon">{isRecording ? "⏹️" : "🎤"}</div>
+              <span>{isRecording ? "Stop Recording" : "Start Recording"}</span>
             </button>
             {isRecording && (
-              <div className="recording-time">
-                Recording: {formatTime(recordingTime)}
+              <div className="recording-timer">
+                <span className="timer-text">{formatTime(recordingTime)}</span>
+                <div className="recording-indicator">
+                  <div className="pulse-dot"></div>
+                </div>
               </div>
             )}
           </div>
         </div>
       </div>
+    </div>
+  );
 
-      {audioId && (
-        <div className="section generate-section">
-          <h2>Generate Slides</h2>
-          <button
-            onClick={generateSlides}
-            disabled={isGenerating}
-            className={`generate-btn ${isGenerating ? 'loading' : ''}`}
-          >
-            {isGenerating ? "Generating..." : "Generate Slide Deck"}
-          </button>
-        </div>
-      )}
+  const renderStep2 = () => (
+    <div className="step-content">
+      <div className="step-header">
+        <h2>Review Your Content</h2>
+        <p>Check the transcription and make sure everything looks correct</p>
+      </div>
 
-      {slideDeck && (
-        <div className="section slides-section">
-          <h2>Generated Slide Deck</h2>
-          <div className="slide-deck-info card">
-            <p>
-              <strong>Total Slides:</strong> {slideDeck.totalSlides}
-            </p>
-            <p>
-              <strong>Generated:</strong>{" "}
-              {new Date(slideDeck.generatedAt).toLocaleString()}
-            </p>
-            <p>
-              <strong>Format:</strong> {slideDeck.format}
+      <div className="review-section">
+        <div className="transcription-card">
+          <div className="card-header">
+            <div className="card-icon">📝</div>
+            <h3>Transcription</h3>
+          </div>
+          <div className="transcription-content">
+            <p className="transcription-text">
+              {transcribedText || "Processing transcription..."}
             </p>
           </div>
+        </div>
 
-          <div className="slides-preview">
-            <h3>Slides Preview</h3>
-            <div className="slides-list grid grid-2">
+        <div className="action-buttons">
+          <button
+            onClick={() => setCurrentStep(1)}
+            className="secondary-button"
+          >
+            ← Back to Audio
+          </button>
+          <button
+            onClick={() => setCurrentStep(3)}
+            className="primary-button"
+            disabled={!transcribedText || transcribedText === "Processing..."}
+          >
+            Continue to Generate →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderStep3 = () => (
+    <div className="step-content">
+      <div className="step-header">
+        <h2>Generate Your Slides</h2>
+        <p>AI will create a professional slide deck from your audio</p>
+      </div>
+
+      <div className="generate-section">
+        <div className="generate-card">
+          <div className="card-header">
+            <div className="card-icon">✨</div>
+            <h3>Ready to Generate</h3>
+          </div>
+          <div className="generate-content">
+            <p>
+              Your audio has been processed and is ready to be converted into
+              slides.
+            </p>
+            <button
+              onClick={generateSlides}
+              disabled={isGenerating}
+              className={`primary-button large ${
+                isGenerating ? "loading" : ""
+              }`}
+            >
+              {isGenerating ? "Creating Slides..." : "Generate Slide Deck"}
+            </button>
+          </div>
+        </div>
+
+        <div className="action-buttons">
+          <button
+            onClick={() => setCurrentStep(2)}
+            className="secondary-button"
+          >
+            ← Back to Review
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderStep4 = () => (
+    <div className="step-content">
+      <div className="step-header">
+        <h2>Your Slide Deck is Ready</h2>
+        <p>View your presentation and download in your preferred format</p>
+      </div>
+
+      {slideDeck && (
+        <div className="result-section">
+          <div className="slides-display">
+            <div className="slides-header">
+              <h3>Your Generated Slides</h3>
+              <div className="slides-info">
+                <span className="slide-count">
+                  {slideDeck.slides.length} slides
+                </span>
+                <span className="generation-date">
+                  Generated{" "}
+                  {new Date(slideDeck.generatedAt).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+
+            <div className="slides-container">
               {slideDeck.slides.map((slide, index) => (
-                <div key={slide.id} className="slide-preview card">
-                  <h4>
-                    Slide {slide.order}: {slide.title}
-                  </h4>
-                  <p>
-                    <strong>Content:</strong> {slide.content}
-                  </p>
-                  <p>
-                    <strong>Speaker Notes:</strong> {slide.speakerNotes}
-                  </p>
+                <div key={slide.id} className="slide-preview-card">
+                  <div className="slide-header">
+                    <div className="slide-number-badge">Slide {index + 1}</div>
+                    <h4 className="slide-preview-title">{slide.title}</h4>
+                  </div>
+                  <div className="slide-preview-content">
+                    <p className="slide-preview-text">{slide.content}</p>
+                  </div>
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className="presentation-actions">
+            <button
+              onClick={() => setShowPresentation(true)}
+              className="primary-button large"
+            >
+              🎭 View Presentation
+            </button>
           </div>
 
           <div className="download-section">
@@ -290,36 +782,129 @@ function VoiceToSlide() {
             <div className="download-buttons">
               <button
                 onClick={() => downloadSlides("html")}
-                className="download-btn btn"
+                disabled={isDownloading}
+                className={`download-button primary ${
+                  isDownloading && downloadFormat === "html" ? "loading" : ""
+                }`}
               >
-                Download as HTML
+                <span className="download-icon">
+                  {isDownloading && downloadFormat === "html" ? "⏳" : "📄"}
+                </span>
+                {isDownloading && downloadFormat === "html"
+                  ? "Generating..."
+                  : "Download as HTML"}
               </button>
               <button
                 onClick={() => downloadSlides("pdf")}
-                className="download-btn btn"
+                disabled={isDownloading}
+                className={`download-button secondary ${
+                  isDownloading && downloadFormat === "pdf" ? "loading" : ""
+                }`}
               >
-                Download as PDF
+                <span className="download-icon">
+                  {isDownloading && downloadFormat === "pdf" ? "⏳" : "📋"}
+                </span>
+                {isDownloading && downloadFormat === "pdf"
+                  ? "Generating PDF..."
+                  : "Download as PDF"}
+              </button>
+              <button
+                onClick={() => downloadSpeakerNotes()}
+                disabled={isDownloading}
+                className="download-button tertiary"
+              >
+                <span className="download-icon">📝</span>
+                Download Speaker Notes
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {generationHistory.length > 0 && (
-        <div className="section history-section">
-          <h2>Generation History ({generationHistory.length})</h2>
-          <div className="history-list grid grid-3">
-            {generationHistory.map((item, index) => (
-              <div key={index} className="history-item card">
-                <h4>{item.audioName || `Deck ${item.id}`}</h4>
-                <p>Generated: {new Date(item.generatedAt).toLocaleString()}</p>
-                <p>Slides: {item.slideCount}</p>
-                <span className={`status-badge ${item.status}`}>{item.status}</span>
+            {isDownloading && (
+              <div className="download-status">
+                <p>
+                  Generating {downloadFormat.toUpperCase()} file... This may
+                  take a moment.
+                </p>
               </div>
-            ))}
+            )}
+
+            <div className="download-help">
+              <p>
+                <strong>💡 Tip:</strong> PDFs are now generated using a
+                lightweight library. If you prefer more formatting options, you
+                can also convert the HTML file to PDF using your browser's print
+                function (Ctrl+P / Cmd+P) and selecting "Save as PDF".
+              </p>
+            </div>
+          </div>
+
+          <div className="action-buttons">
+            <button
+              onClick={() => {
+                setCurrentStep(1);
+                setAudioFile(null);
+                setSlideDeck(null);
+                setAudioId(null);
+                setTranscribedText("");
+                setProcessingStatus("");
+              }}
+              className="primary-button"
+            >
+              Create New Presentation
+            </button>
           </div>
         </div>
       )}
+    </div>
+  );
+
+  const renderCurrentStep = () => {
+    switch (currentStep) {
+      case 1:
+        return renderStep1();
+      case 2:
+        return renderStep2();
+      case 3:
+        return renderStep3();
+      case 4:
+        return renderStep4();
+      default:
+        return renderStep1();
+    }
+  };
+
+  return (
+    <div className="voice-to-slide">
+      <div className="container">
+        <div className="header">
+          <h1>Voice-to-Slide Generator</h1>
+          <p>Transform your spoken ideas into professional presentations</p>
+        </div>
+
+        {renderStepIndicator()}
+
+        <div className="main-content">{renderCurrentStep()}</div>
+
+        {generationHistory.length > 0 && (
+          <div className="history-section">
+            <h3>Recent Presentations</h3>
+            <div className="history-grid">
+              {generationHistory.slice(0, 3).map((item, index) => (
+                <div key={index} className="history-card">
+                  <div className="history-icon">📊</div>
+                  <div className="history-info">
+                    <h4>{item.audioName || `Presentation ${item.id}`}</h4>
+                    <p>{new Date(item.generatedAt).toLocaleDateString()}</p>
+                    <span className="slide-count">
+                      {item.slideCount} slides
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {renderPresentation()}
     </div>
   );
 }

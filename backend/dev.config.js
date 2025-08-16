@@ -1,7 +1,7 @@
 module.exports = {
   // Development server configuration
   server: {
-    port: process.env.PORT || 5001,
+    port: process.env.PORT || 8080,
     host: "localhost",
     cors: {
       origin: ["http://localhost:3000", "http://127.0.0.1:3000"],

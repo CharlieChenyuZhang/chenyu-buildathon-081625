@@ -4,7 +4,7 @@ const path = require("path");
 require("dotenv").config();
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 8080;
 const isDevelopment = process.env.NODE_ENV === "development";
 
 // Development configuration
@@ -62,7 +62,12 @@ app.use("/api/employee-engagement", employeeEngagementRoutes);
 app.use("/api/codebase-time-machine", codebaseTimeMachineRoutes);
 app.use("/api/knowledge-graph", knowledgeGraphRoutes);
 
-// Health check endpoint
+// Health check endpoint (for App Runner)
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "OK", message: "Buildathon API is running" });
+});
+
+// Legacy health check endpoint (for backward compatibility)
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK", message: "Buildathon API is running" });
 });
@@ -79,13 +84,16 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+const host = "0.0.0.0"; // Bind to all interfaces for container deployment
+app.listen(PORT, host, () => {
+  console.log(`🚀 Server running on http://${host}:${PORT}`);
   if (isDevelopment) {
     console.log(`📡 Development mode enabled`);
     console.log(`🔄 Hot reload active - watching for changes`);
     console.log(`🌐 API available at http://localhost:${PORT}`);
-    console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+    console.log(`📊 Health check: http://localhost:${PORT}/health`);
+  } else {
+    console.log(`📊 Health check: http://${host}:${PORT}/health`);
   }
 });
 
