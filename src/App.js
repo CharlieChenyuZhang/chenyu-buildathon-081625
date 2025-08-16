@@ -8,6 +8,7 @@ import VoiceToSlide from "./components/VoiceToSlide";
 import EmployeeEngagement from "./components/EmployeeEngagement";
 import CodebaseTimeMachine from "./components/CodebaseTimeMachine";
 import KnowledgeGraph from "./components/KnowledgeGraph";
+import EnvironmentIndicator from "./components/EnvironmentIndicator";
 
 function Navigation() {
   const location = useLocation();
@@ -63,6 +64,7 @@ function App() {
             <Route path="/knowledge-graph" element={<KnowledgeGraph />} />
           </Routes>
         </main>
+        <EnvironmentIndicator />
       </div>
     </Router>
   );
