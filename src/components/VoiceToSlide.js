@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import axios from "axios";
+import { api } from "../config/api";
 import "./VoiceToSlide.css";
 
 function VoiceToSlide() {
@@ -94,7 +94,7 @@ function VoiceToSlide() {
     );
 
     try {
-      const response = await axios.post(
+      const response = await api.post(
         "/api/voice-to-slide/upload-audio",
         formData,
         {
@@ -184,7 +184,7 @@ function VoiceToSlide() {
       const formData = new FormData();
       formData.append("audioBlob", audioFile);
 
-      const response = await axios.post(
+      const response = await api.post(
         "/api/voice-to-slide/record-audio",
         formData,
         {
@@ -231,7 +231,7 @@ function VoiceToSlide() {
     setIsGenerating(true);
     setProcessingStatus("Creating your slide deck...");
     try {
-      const response = await axios.post("/api/voice-to-slide/generate-slides", {
+      const response = await api.post("/api/voice-to-slide/generate-slides", {
         audioId: audioId,
         options: {
           format: "html",
@@ -260,7 +260,7 @@ function VoiceToSlide() {
     try {
       console.log(`Downloading slides in ${format} format...`);
 
-      const response = await axios.get(
+      const response = await api.get(
         `/api/voice-to-slide/deck/${slideDeck.id}/download?format=${format}`,
         {
           responseType: "blob",
@@ -313,7 +313,7 @@ function VoiceToSlide() {
     if (!slideDeck) return;
 
     try {
-      const response = await axios.get(
+      const response = await api.get(
         `/api/voice-to-slide/deck/${slideDeck.id}/speaker-notes`,
         {
           responseType: "blob",
@@ -346,7 +346,7 @@ function VoiceToSlide() {
     const poll = async () => {
       try {
         console.log(`Polling attempt ${attempts + 1} for audioId:`, audioId);
-        const response = await axios.get(
+        const response = await api.get(
           `/api/voice-to-slide/status/${audioId}`
         );
 
@@ -370,7 +370,7 @@ function VoiceToSlide() {
 
           // Fallback: Try to get the transcription from the separate endpoint
           try {
-            const dataResponse = await axios.get(
+            const dataResponse = await api.get(
               `/api/voice-to-slide/transcription/${audioId}`
             );
             if (dataResponse.data.transcribedText) {

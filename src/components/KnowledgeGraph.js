@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import { api } from "../config/api";
 import "./KnowledgeGraph.css";
 
 function KnowledgeGraph() {
@@ -36,7 +36,7 @@ function KnowledgeGraph() {
 
   const loadProjects = async () => {
     try {
-      const response = await axios.get("/api/knowledge-graph/projects");
+      const response = await api.get("/api/knowledge-graph/projects");
       setProjects(response.data.projects);
       if (response.data.projects.length > 0) {
         setSelectedProject(response.data.projects[0]);
@@ -55,7 +55,7 @@ function KnowledgeGraph() {
 
     setIsCreating(true);
     try {
-      const response = await axios.post(
+      const response = await api.post(
         "/api/knowledge-graph/create-project",
         projectForm
       );
@@ -81,7 +81,7 @@ function KnowledgeGraph() {
     });
 
     try {
-      const response = await axios.post(
+      const response = await api.post(
         `/api/knowledge-graph/project/${selectedProject.id}/upload-documents`,
         formData,
         {
@@ -110,7 +110,7 @@ function KnowledgeGraph() {
     }
 
     try {
-      const response = await axios.post(
+      const response = await api.post(
         `/api/knowledge-graph/project/${selectedProject.id}/add-url`,
         urlForm
       );
@@ -129,7 +129,7 @@ function KnowledgeGraph() {
 
     setIsBuilding(true);
     try {
-      const response = await axios.post(
+      const response = await api.post(
         `/api/knowledge-graph/project/${selectedProject.id}/build-graph`
       );
       alert("Knowledge graph built successfully!");
@@ -153,7 +153,7 @@ function KnowledgeGraph() {
 
     setIsQuerying(true);
     try {
-      const response = await axios.post(
+      const response = await api.post(
         `/api/knowledge-graph/project/${selectedProject.id}/query`,
         {
           question: queryForm.question,
@@ -176,9 +176,9 @@ function KnowledgeGraph() {
 
     try {
       const [graphRes, visualizationRes, documentsRes] = await Promise.all([
-        axios.get(`/api/knowledge-graph/project/${projectId}/graph`),
-        axios.get(`/api/knowledge-graph/project/${projectId}/visualization`),
-        axios.get(`/api/knowledge-graph/project/${projectId}/documents`),
+        api.get(`/api/knowledge-graph/project/${projectId}/graph`),
+        api.get(`/api/knowledge-graph/project/${projectId}/visualization`),
+        api.get(`/api/knowledge-graph/project/${projectId}/documents`),
       ]);
 
       setGraph(graphRes.data.graph);
@@ -196,9 +196,9 @@ function KnowledgeGraph() {
   }, [selectedProject]);
 
   const getConfidenceColor = (confidence) => {
-    if (confidence >= 0.8) return "#4CAF50";
-    if (confidence >= 0.6) return "#FF9800";
-    return "#F44336";
+    if (confidence >= 0.8) return "#34c759";
+    if (confidence >= 0.6) return "#ff9500";
+    return "#ff3b30";
   };
 
   return (
@@ -209,14 +209,15 @@ function KnowledgeGraph() {
         Q&A.
       </p>
 
-      <div className="projects-section">
+      <div className="projects-section glass-card">
         <h2>Knowledge Graph Projects</h2>
 
         <form onSubmit={handleCreateProject} className="project-form">
           <div className="form-group">
-            <label>Project Name:</label>
+            <label>Project Name</label>
             <input
               type="text"
+              className="form-input"
               value={projectForm.name}
               onChange={(e) =>
                 setProjectForm((prev) => ({ ...prev, name: e.target.value }))
@@ -226,8 +227,9 @@ function KnowledgeGraph() {
             />
           </div>
           <div className="form-group">
-            <label>Description:</label>
+            <label>Description</label>
             <textarea
+              className="form-input"
               value={projectForm.description}
               onChange={(e) =>
                 setProjectForm((prev) => ({
@@ -236,9 +238,10 @@ function KnowledgeGraph() {
                 }))
               }
               placeholder="Brief description of your knowledge graph"
+              rows="3"
             />
           </div>
-          <button type="submit" disabled={isCreating} className="create-btn">
+          <button type="submit" disabled={isCreating} className="btn">
             {isCreating ? "Creating..." : "Create Project"}
           </button>
         </form>
@@ -247,6 +250,7 @@ function KnowledgeGraph() {
           <div className="projects-list">
             <h3>Your Projects</h3>
             <select
+              className="project-select"
               value={selectedProject?.id || ""}
               onChange={(e) => {
                 const project = projects.find((p) => p.id === e.target.value);
@@ -265,7 +269,7 @@ function KnowledgeGraph() {
 
       {selectedProject ? (
         <>
-          <div className="project-overview">
+          <div className="project-overview glass-card">
             <h2>Project: {selectedProject.name}</h2>
             <p>{selectedProject.description || "No description provided"}</p>
 
@@ -285,7 +289,7 @@ function KnowledgeGraph() {
             </div>
           </div>
 
-          <div className="content-section">
+          <div className="content-section glass-card">
             <h2>Add Content</h2>
 
             <div className="upload-section">
@@ -307,9 +311,10 @@ function KnowledgeGraph() {
               <h3>Add URL</h3>
               <form onSubmit={handleAddUrl} className="url-form">
                 <div className="form-group">
-                  <label>URL:</label>
+                  <label>URL</label>
                   <input
                     type="url"
+                    className="form-input"
                     value={urlForm.url}
                     onChange={(e) =>
                       setUrlForm((prev) => ({ ...prev, url: e.target.value }))
@@ -319,9 +324,10 @@ function KnowledgeGraph() {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Title (optional):</label>
+                  <label>Title (optional)</label>
                   <input
                     type="text"
+                    className="form-input"
                     value={urlForm.title}
                     onChange={(e) =>
                       setUrlForm((prev) => ({ ...prev, title: e.target.value }))
@@ -329,7 +335,7 @@ function KnowledgeGraph() {
                     placeholder="Article title"
                   />
                 </div>
-                <button type="submit" className="add-url-btn">
+                <button type="submit" className="btn btn-secondary">
                   Add URL
                 </button>
               </form>
@@ -344,7 +350,7 @@ function KnowledgeGraph() {
               <button
                 onClick={handleBuildGraph}
                 disabled={isBuilding || !selectedProject}
-                className="build-btn"
+                className="btn btn-danger"
               >
                 {isBuilding ? "Building..." : "Build Graph"}
               </button>
@@ -360,7 +366,7 @@ function KnowledgeGraph() {
           </div>
 
           {documents.length > 0 && (
-            <div className="documents-section">
+            <div className="documents-section glass-card">
               <h2>Documents ({documents.length})</h2>
               <div className="documents-list">
                 {documents.map((doc, index) => (
@@ -386,39 +392,43 @@ function KnowledgeGraph() {
           )}
 
           {graph && (
-            <div className="graph-section">
+            <div className="graph-section glass-card">
               <h2>Knowledge Graph</h2>
-              <div className="graph-stats">
-                <p>
-                  <strong>Total Nodes:</strong> {graph.stats.totalNodes}
-                </p>
-                <p>
-                  <strong>Total Edges:</strong> {graph.stats.totalEdges}
-                </p>
-                <p>
-                  <strong>Concepts:</strong> {graph.stats.concepts}
-                </p>
-                <p>
-                  <strong>Entities:</strong> {graph.stats.entities}
-                </p>
+              <div className="stats-grid">
+                <div className="stat-card">
+                  <h3>Total Nodes</h3>
+                  <span>{graph.stats.totalNodes}</span>
+                </div>
+                <div className="stat-card">
+                  <h3>Total Edges</h3>
+                  <span>{graph.stats.totalEdges}</span>
+                </div>
+                <div className="stat-card">
+                  <h3>Concepts</h3>
+                  <span>{graph.stats.concepts}</span>
+                </div>
+                <div className="stat-card">
+                  <h3>Entities</h3>
+                  <span>{graph.stats.entities}</span>
+                </div>
               </div>
 
               <div className="graph-preview">
                 <h3>Sample Nodes</h3>
-                <div className="nodes-list">
+                <div className="documents-list">
                   {graph.nodes.slice(0, 5).map((node, index) => (
-                    <div key={index} className="node-item">
+                    <div key={index} className="document-card">
                       <h4>{node.label}</h4>
-                      <p className="type">{node.type}</p>
-                      <p className="description">
-                        {node.properties.description}
-                      </p>
-                      <div className="node-stats">
-                        <span>Frequency: {node.properties.frequency}</span>
-                        <span>
+                      <div className="document-info">
+                        <span className="type">{node.type}</span>
+                        <span className="size">
+                          Frequency: {node.properties.frequency}
+                        </span>
+                        <span className="concepts">
                           Documents: {node.properties.documents.length}
                         </span>
                       </div>
+                      <p>{node.properties.description}</p>
                     </div>
                   ))}
                 </div>
@@ -426,13 +436,14 @@ function KnowledgeGraph() {
             </div>
           )}
 
-          <div className="query-section">
+          <div className="query-section glass-card">
             <h2>Natural Language Q&A</h2>
             <form onSubmit={handleQuery} className="query-form">
               <div className="form-group">
-                <label>Ask a question about your knowledge base:</label>
+                <label>Ask a question about your knowledge base</label>
                 <input
                   type="text"
+                  className="query-input"
                   value={queryForm.question}
                   onChange={(e) =>
                     setQueryForm((prev) => ({
@@ -441,11 +452,10 @@ function KnowledgeGraph() {
                     }))
                   }
                   placeholder="e.g., 'What is machine learning?' or 'How do neural networks work?'"
-                  className="query-input"
                   required
                 />
               </div>
-              <button type="submit" disabled={isQuerying} className="query-btn">
+              <button type="submit" disabled={isQuerying} className="btn">
                 {isQuerying ? "Processing..." : "Ask Question"}
               </button>
             </form>
@@ -524,7 +534,7 @@ function KnowledgeGraph() {
           </div>
 
           {visualization && (
-            <div className="visualization-section">
+            <div className="visualization-section glass-card">
               <h2>Graph Visualization</h2>
               <div className="visualization-controls">
                 <select defaultValue="force">
@@ -550,7 +560,7 @@ function KnowledgeGraph() {
                         refY="3.5"
                         orient="auto"
                       >
-                        <polygon points="0 0, 10 3.5, 0 7" fill="#45b7d1" />
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#007aff" />
                       </marker>
                     </defs>
 
@@ -571,7 +581,7 @@ function KnowledgeGraph() {
                             y1={sourceNode.y}
                             x2={targetNode.x}
                             y2={targetNode.y}
-                            stroke={edge.color || "#45b7d1"}
+                            stroke={edge.color || "#007aff"}
                             strokeWidth={edge.width || 2}
                             markerEnd="url(#arrowhead)"
                           />
@@ -580,7 +590,7 @@ function KnowledgeGraph() {
                             y={(sourceNode.y + targetNode.y) / 2}
                             textAnchor="middle"
                             fontSize="12"
-                            fill="#666"
+                            fill="#86868b"
                             className="edge-label"
                           >
                             {edge.label}
@@ -607,7 +617,7 @@ function KnowledgeGraph() {
                           y={node.y + node.size + 15}
                           textAnchor="middle"
                           fontSize="12"
-                          fill="#333"
+                          fill="#1d1d1f"
                           className="node-label"
                         >
                           {node.label.length > 15

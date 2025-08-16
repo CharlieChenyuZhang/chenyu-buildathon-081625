@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import axios from "axios";
+import { api } from "../config/api";
 import "./VisualMemory.css";
 
 function VisualMemory() {
@@ -140,7 +140,7 @@ function VisualMemory() {
     });
 
     try {
-      const response = await axios.post(
+      const response = await api.post(
         "/api/visual-memory/upload-screenshots",
         formData,
         {
@@ -187,7 +187,7 @@ function VisualMemory() {
 
     setIsSearching(true);
     try {
-      const response = await axios.post("/api/visual-memory/search", {
+      const response = await api.post("/api/visual-memory/search", {
         query: searchQuery,
         filters: searchFilters,
       });
@@ -244,7 +244,7 @@ function VisualMemory() {
 
   const loadScreenshots = async () => {
     try {
-      const response = await axios.get("/api/visual-memory/screenshots");
+      const response = await api.get("/api/visual-memory/screenshots");
       setUploadedScreenshots(response.data.screenshots);
     } catch (error) {
       console.error("Error loading screenshots:", error);

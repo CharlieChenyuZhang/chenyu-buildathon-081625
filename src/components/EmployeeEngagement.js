@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import axios from "axios";
+import { api } from "../config/api";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -86,7 +86,7 @@ function EmployeeEngagement() {
           connectionRetries + 1
         }/${maxRetries})`
       );
-      const response = await axios.get("/api/employee-engagement/workspaces");
+      const response = await api.get("/api/employee-engagement/workspaces");
 
       if (response.data.workspaces.length === 0) {
         // No workspaces found, try to reconnect with stored credentials
@@ -99,7 +99,7 @@ function EmployeeEngagement() {
             .split(",")
             .map((ch) => ch.trim());
 
-          const reconnectResponse = await axios.post(
+          const reconnectResponse = await api.post(
             "/api/employee-engagement/connect-slack",
             {
               workspaceName: credentials.workspaceName,
@@ -164,7 +164,7 @@ function EmployeeEngagement() {
 
   const loadWorkspaces = async () => {
     try {
-      const response = await axios.get("/api/employee-engagement/workspaces");
+      const response = await api.get("/api/employee-engagement/workspaces");
       setWorkspaces(response.data.workspaces);
       if (response.data.workspaces.length > 0) {
         setSelectedWorkspace(response.data.workspaces[0]);
@@ -185,7 +185,7 @@ function EmployeeEngagement() {
     setConnectionFailed(false);
     try {
       const channels = slackForm.channels.split(",").map((ch) => ch.trim());
-      const response = await axios.post(
+      const response = await api.post(
         "/api/employee-engagement/connect-slack",
         {
           workspaceName: slackForm.workspaceName,
@@ -228,7 +228,7 @@ function EmployeeEngagement() {
     // Start progress polling
     const progressInterval = setInterval(async () => {
       try {
-        const response = await axios.get(
+        const response = await api.get(
           `/api/employee-engagement/progress/${workspaceId}`
         );
         setSentimentProgress(response.data.progress);
@@ -249,7 +249,7 @@ function EmployeeEngagement() {
     const attemptFetch = async () => {
       try {
         const workspace = workspaces.find((w) => w.id === workspaceId);
-        const response = await axios.post(
+        const response = await api.post(
           `/api/employee-engagement/fetch-messages/${workspaceId}`,
           {
             channels: workspace.channels,
@@ -365,7 +365,7 @@ function EmployeeEngagement() {
 
     setIsLoadingDashboard(true);
     try {
-      const response = await axios.get(
+      const response = await api.get(
         `/api/employee-engagement/dashboard/${workspaceId}`
       );
 
@@ -381,7 +381,7 @@ function EmployeeEngagement() {
 
       // Also try to load saved sentiment data for more detailed analysis
       try {
-        const sentimentResponse = await axios.get(
+        const sentimentResponse = await api.get(
           `/api/employee-engagement/sentiment-data/${workspaceId}`
         );
         if (sentimentResponse.data.success) {
@@ -409,7 +409,7 @@ function EmployeeEngagement() {
 
     setIsLoadingTrends(true);
     try {
-      const response = await axios.get(
+      const response = await api.get(
         `/api/employee-engagement/trends/${workspaceId}`
       );
       setTrends(response.data.trends);
@@ -426,7 +426,7 @@ function EmployeeEngagement() {
     setIsGeneratingInsights(true);
     setIsLoadingInsights(true);
     try {
-      const response = await axios.post(
+      const response = await api.post(
         `/api/employee-engagement/insights/${workspaceId}`,
         {
           timeframe: "weekly",
