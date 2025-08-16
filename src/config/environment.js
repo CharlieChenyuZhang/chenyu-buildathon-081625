@@ -46,3 +46,4 @@ export const getEnvironmentInfo = () => {
 if (process.env.NODE_ENV === 'development') {
   console.log('🌍 Environment Info:', getEnvironmentInfo());
 }
+
