@@ -21,7 +21,11 @@ if (isDevelopment) {
 app.use(
   cors(
     devConfig.server?.cors || {
-      origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
+      origin: [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://main.dolpvcksb3r4b.amplifyapp.com",
+      ],
       credentials: true,
     }
   )
