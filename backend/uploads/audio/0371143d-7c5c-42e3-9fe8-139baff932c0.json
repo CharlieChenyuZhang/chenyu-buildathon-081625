@@ -1,0 +1,34 @@
+{
+  "id": "0371143d-7c5c-42e3-9fe8-139baff932c0",
+  "transcribedText": "Hello, hello, one, two, two, two.\n",
+  "slideStructure": {
+    "slides": [
+      {
+        "title": "Introduction",
+        "content": "Welcome and testing audio clarity.",
+        "speakerNotes": "Start by greeting the audience and ensuring everyone can hear the presentation clearly."
+      },
+      {
+        "title": "Test Phrase Analysis",
+        "content": "Reiteration of simple words for microphone check.",
+        "speakerNotes": "Explain the importance of clear audio in presentations and why phrases like 'hello, hello, one, two, two, two' are used for testing equipment."
+      },
+      {
+        "title": "Importance of Clear Communication",
+        "content": "Clear audio ensures effective message delivery.",
+        "speakerNotes": "Discuss how clarity in communication is key to the success of presenting, ensuring no one misses critical information."
+      },
+      {
+        "title": "Engagement with Audience",
+        "content": "Engage the audience by confirming they hear you clearly.",
+        "speakerNotes": "Encourage interaction by asking the audience to respond or signal if they encounter any audio issues, creating a more engaged environment."
+      },
+      {
+        "title": "Conclusion",
+        "content": "Ready to progress into the core presentation topics.",
+        "speakerNotes": "Conclude the audio check portion of the presentation, ensuring readiness to move to the next segments of your talk."
+      }
+    ]
+  },
+  "processedAt": "2025-08-16T22:13:42.926Z"
+}

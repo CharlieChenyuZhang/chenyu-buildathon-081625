@@ -12,7 +12,6 @@ function VoiceToSlide() {
   const [slideDeck, setSlideDeck] = useState(null);
   const [audioId, setAudioId] = useState(null);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [generationHistory, setGenerationHistory] = useState([]);
   const [processingStatus, setProcessingStatus] = useState("");
   const [transcribedText, setTranscribedText] = useState("");
   const [showPresentation, setShowPresentation] = useState(false);
@@ -241,7 +240,6 @@ function VoiceToSlide() {
       });
 
       setSlideDeck(response.data.deck);
-      setGenerationHistory((prev) => [response.data.deck, ...prev]);
       setProcessingStatus("Slide deck created successfully!");
       setCurrentStep(4);
     } catch (error) {
@@ -334,19 +332,6 @@ function VoiceToSlide() {
       alert("Failed to download speaker notes");
     }
   };
-
-  const loadHistory = async () => {
-    try {
-      const response = await axios.get("/api/voice-to-slide/history");
-      setGenerationHistory(response.data.history);
-    } catch (error) {
-      console.error("Error loading history:", error);
-    }
-  };
-
-  React.useEffect(() => {
-    loadHistory();
-  }, []);
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -882,26 +867,6 @@ function VoiceToSlide() {
         {renderStepIndicator()}
 
         <div className="main-content">{renderCurrentStep()}</div>
-
-        {generationHistory.length > 0 && (
-          <div className="history-section">
-            <h3>Recent Presentations</h3>
-            <div className="history-grid">
-              {generationHistory.slice(0, 3).map((item, index) => (
-                <div key={index} className="history-card">
-                  <div className="history-icon">📊</div>
-                  <div className="history-info">
-                    <h4>{item.audioName || `Presentation ${item.id}`}</h4>
-                    <p>{new Date(item.generatedAt).toLocaleDateString()}</p>
-                    <span className="slide-count">
-                      {item.slideCount} slides
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {renderPresentation()}
