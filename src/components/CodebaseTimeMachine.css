@@ -1,0 +1,632 @@
+.codebase-time-machine {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.codebase-time-machine h1 {
+  color: #333;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.codebase-time-machine > p {
+  text-align: center;
+  color: #666;
+  margin-bottom: 30px;
+  font-size: 16px;
+}
+
+.repository-section {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.repository-section h2 {
+  margin: 0 0 20px 0;
+  color: #333;
+}
+
+.repo-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 15px;
+  align-items: end;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #333;
+}
+
+.form-group input {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.analyze-btn {
+  padding: 10px 20px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.analyze-btn:hover {
+  background: #0056b3;
+}
+
+.analyze-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.analyses-list {
+  margin-top: 20px;
+}
+
+.analyses-list h3 {
+  margin: 0 0 10px 0;
+  color: #333;
+}
+
+.analyses-list select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.analysis-overview {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.analysis-overview h2 {
+  margin: 0 0 20px 0;
+  color: #333;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.overview-card {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 20px;
+  text-align: center;
+}
+
+.overview-card h3 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.overview-card span {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+}
+
+.status {
+  text-transform: capitalize;
+  font-weight: 500;
+}
+
+.summary-section {
+  margin-top: 30px;
+}
+
+.summary-section h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.summary-item {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 15px;
+}
+
+.summary-item strong {
+  display: block;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.summary-item ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.summary-item li {
+  margin-bottom: 5px;
+  color: #666;
+}
+
+.query-section {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.query-section h2 {
+  margin: 0 0 20px 0;
+  color: #333;
+}
+
+.query-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 15px;
+  align-items: end;
+  margin-bottom: 20px;
+}
+
+.query-input {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.query-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.query-btn {
+  padding: 12px 24px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.query-btn:hover {
+  background: #218838;
+}
+
+.query-result {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.query-result h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+}
+
+.answer {
+  margin: 0 0 20px 0;
+  line-height: 1.6;
+  color: #555;
+}
+
+.related-commits h4 {
+  margin: 0 0 15px 0;
+  color: #333;
+}
+
+.commits-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.commit-item {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 15px;
+}
+
+.commit-header {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.hash {
+  font-family: monospace;
+  background: #f8f9fa;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  color: #666;
+}
+
+.author {
+  font-weight: 500;
+  color: #333;
+}
+
+.date {
+  color: #666;
+  font-size: 14px;
+}
+
+.commit-message {
+  margin: 0;
+  color: #333;
+  line-height: 1.4;
+}
+
+.evolution-section {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.evolution-section h2 {
+  margin: 0 0 20px 0;
+  color: #333;
+}
+
+.evolution-timeline {
+  position: relative;
+  padding-left: 30px;
+}
+
+.evolution-timeline::before {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e9ecef;
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 30px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 15px;
+}
+
+.timeline-item::before {
+  content: "";
+  position: absolute;
+  left: -22px;
+  top: 20px;
+  width: 12px;
+  height: 12px;
+  background: #007bff;
+  border-radius: 50%;
+  border: 3px solid white;
+}
+
+.timeline-date {
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.timeline-title {
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.timeline-description {
+  color: #666;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.ownership-section {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.ownership-section h2 {
+  margin: 0 0 20px 0;
+  color: #333;
+}
+
+.ownership-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.ownership-card {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 15px;
+}
+
+.ownership-card h3 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.ownership-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.ownership-percentage {
+  font-weight: bold;
+  color: #333;
+}
+
+.ownership-files {
+  color: #666;
+  font-size: 14px;
+}
+
+.ownership-bar {
+  width: 100%;
+  height: 8px;
+  background: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.ownership-fill {
+  height: 100%;
+  background: #007bff;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.features-section {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.features-section h2 {
+  margin: 0 0 20px 0;
+  color: #333;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+}
+
+.feature-card {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 15px;
+}
+
+.feature-card h3 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.feature-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.feature-commits {
+  color: #666;
+  font-size: 14px;
+}
+
+.feature-contributors {
+  color: #666;
+  font-size: 14px;
+}
+
+.feature-description {
+  color: #666;
+  line-height: 1.4;
+  margin: 0;
+  font-size: 14px;
+}
+
+.commits-section {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.commits-section h2 {
+  margin: 0 0 20px 0;
+  color: #333;
+}
+
+.commits-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.commits-table th,
+.commits-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.commits-table th {
+  background: #f8f9fa;
+  font-weight: 500;
+  color: #333;
+}
+
+.commits-table tr:hover {
+  background: #f8f9fa;
+}
+
+.commit-hash {
+  font-family: monospace;
+  color: #007bff;
+  cursor: pointer;
+}
+
+.commit-hash:hover {
+  text-decoration: underline;
+}
+
+.commit-author {
+  font-weight: 500;
+  color: #333;
+}
+
+.commit-date {
+  color: #666;
+  font-size: 14px;
+}
+
+.commit-message-cell {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.loading::after {
+  content: "";
+  width: 30px;
+  height: 30px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.error {
+  color: #dc3545;
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  padding: 10px;
+  margin: 10px 0;
+}
+
+.success {
+  color: #155724;
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+  border-radius: 4px;
+  padding: 10px;
+  margin: 10px 0;
+}
+
+@media (max-width: 768px) {
+  .codebase-time-machine {
+    padding: 10px;
+  }
+
+  .repo-form {
+    grid-template-columns: 1fr;
+  }
+
+  .query-form {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ownership-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .commits-table {
+    font-size: 14px;
+  }
+
+  .commits-table th,
+  .commits-table td {
+    padding: 8px;
+  }
+}

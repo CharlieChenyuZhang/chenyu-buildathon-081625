@@ -1,0 +1,493 @@
+.voice-to-slide {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 24px;
+  padding: 2.5rem;
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  margin-top: 2rem;
+  transition: all 0.3s ease;
+}
+
+.voice-to-slide:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 10px 25px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.voice-to-slide h1 {
+  color: #1d1d1f;
+  margin-bottom: 1rem;
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.voice-to-slide > p {
+  color: #6e6e73;
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.audio-input-section,
+.generate-section,
+.slides-section,
+.history-section {
+  margin-bottom: 3rem;
+}
+
+.audio-input-section h2,
+.generate-section h2,
+.slides-section h2,
+.history-section h2 {
+  color: #1d1d1f;
+  margin-bottom: 1.5rem;
+  font-size: 1.8rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.3;
+}
+
+.upload-section,
+.record-section {
+  margin-bottom: 2rem;
+}
+
+.upload-section h3,
+.record-section h3 {
+  color: #1d1d1f;
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.upload-area,
+.record-area {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.file-input {
+  flex: 1;
+  padding: 1rem;
+  border: 2px dashed rgba(0, 122, 255, 0.3);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  color: #1d1d1f;
+}
+
+.file-input:hover {
+  border-color: #007aff;
+  background: rgba(255, 255, 255, 0.8);
+  transform: translateY(-2px);
+}
+
+.file-input:focus {
+  outline: none;
+  border-color: #007aff;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+}
+
+.upload-btn,
+.generate-btn {
+  background: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
+  color: white;
+  border: none;
+  padding: 0.875rem 1.5rem;
+  border-radius: 16px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 122, 255, 0.2),
+    0 2px 4px -1px rgba(0, 122, 255, 0.1);
+  font-family: inherit;
+  letter-spacing: -0.025em;
+  min-width: 140px;
+}
+
+.upload-btn::before,
+.generate-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.upload-btn:hover:not(:disabled),
+.generate-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 10px 15px -3px rgba(0, 122, 255, 0.3),
+    0 4px 6px -2px rgba(0, 122, 255, 0.2);
+}
+
+.upload-btn:hover:not(:disabled)::before,
+.generate-btn:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+.upload-btn:active:not(:disabled),
+.generate-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.upload-btn:disabled,
+.generate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.record-btn {
+  background: linear-gradient(135deg, #ff3b30 0%, #ff6b6b 100%);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 
+    0 4px 6px -1px rgba(255, 59, 48, 0.3),
+    0 2px 4px -1px rgba(255, 59, 48, 0.2);
+  font-family: inherit;
+  letter-spacing: -0.025em;
+  min-width: 160px;
+}
+
+.record-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.record-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 10px 15px -3px rgba(255, 59, 48, 0.4),
+    0 4px 6px -2px rgba(255, 59, 48, 0.3);
+}
+
+.record-btn:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+.record-btn.recording {
+  background: linear-gradient(135deg, #34c759 0%, #30d158 100%);
+  animation: pulse 2s infinite;
+  box-shadow: 
+    0 4px 6px -1px rgba(52, 199, 89, 0.3),
+    0 2px 4px -1px rgba(52, 199, 89, 0.2);
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.recording-time {
+  background: rgba(255, 59, 48, 0.1);
+  color: #ff3b30;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1.1rem;
+  border: 1px solid rgba(255, 59, 48, 0.2);
+  text-align: center;
+  min-width: 120px;
+}
+
+.slide-deck-info {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  margin-bottom: 2rem;
+}
+
+.slide-deck-info p {
+  margin: 0.5rem 0;
+  color: #6e6e73;
+  font-size: 0.95rem;
+}
+
+.slide-deck-info strong {
+  color: #1d1d1f;
+  font-weight: 600;
+}
+
+.slides-preview h3 {
+  color: #1d1d1f;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.slide-preview {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  transition: all 0.3s ease;
+}
+
+.slide-preview:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 8px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.slide-preview h4 {
+  color: #1d1d1f;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.slide-preview p {
+  margin: 0.5rem 0;
+  color: #6e6e73;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.slide-preview strong {
+  color: #1d1d1f;
+  font-weight: 600;
+}
+
+.download-section h3 {
+  color: #1d1d1f;
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.download-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.download-btn {
+  background: linear-gradient(135deg, #34c759 0%, #30d158 100%);
+  color: white;
+  border: none;
+  padding: 0.875rem 1.5rem;
+  border-radius: 16px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 
+    0 4px 6px -1px rgba(52, 199, 89, 0.2),
+    0 2px 4px -1px rgba(52, 199, 89, 0.1);
+  font-family: inherit;
+  letter-spacing: -0.025em;
+}
+
+.download-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.download-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 10px 15px -3px rgba(52, 199, 89, 0.3),
+    0 4px 6px -2px rgba(52, 199, 89, 0.2);
+}
+
+.download-btn:hover::before {
+  left: 100%;
+}
+
+.download-btn:active {
+  transform: translateY(0);
+}
+
+.history-item {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  transition: all 0.3s ease;
+}
+
+.history-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 8px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.history-item h4 {
+  color: #1d1d1f;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.history-item p {
+  margin: 0.25rem 0;
+  color: #6e6e73;
+  font-size: 0.85rem;
+}
+
+/* Loading animation for buttons */
+.upload-btn.loading,
+.generate-btn.loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-btn.loading::after,
+.generate-btn.loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .voice-to-slide {
+    padding: 1.5rem;
+    margin-top: 1rem;
+  }
+
+  .voice-to-slide h1 {
+    font-size: 2rem;
+  }
+
+  .audio-input-section h2,
+  .generate-section h2,
+  .slides-section h2,
+  .history-section h2 {
+    font-size: 1.5rem;
+  }
+
+  .upload-area,
+  .record-area {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .upload-btn,
+  .generate-btn,
+  .record-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .download-buttons {
+    flex-direction: column;
+  }
+
+  .download-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .voice-to-slide {
+    padding: 1rem;
+  }
+
+  .voice-to-slide h1 {
+    font-size: 1.75rem;
+  }
+
+  .slide-preview,
+  .history-item {
+    padding: 1rem;
+  }
+}

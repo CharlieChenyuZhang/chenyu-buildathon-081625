@@ -1,0 +1,478 @@
+.employee-engagement {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.employee-engagement h1 {
+  color: #333;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.employee-engagement > p {
+  text-align: center;
+  color: #666;
+  margin-bottom: 30px;
+  font-size: 16px;
+}
+
+.workspace-section {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.workspace-section h2 {
+  margin: 0 0 20px 0;
+  color: #333;
+}
+
+.connect-slack {
+  text-align: center;
+}
+
+.connect-slack h3 {
+  margin: 0 0 20px 0;
+  color: #333;
+}
+
+.slack-form {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.form-group {
+  margin-bottom: 15px;
+  text-align: left;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #333;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.connect-btn {
+  width: 100%;
+  padding: 12px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.connect-btn:hover {
+  background: #0056b3;
+}
+
+.connect-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.workspace-selector {
+  text-align: center;
+}
+
+.workspace-selector select {
+  padding: 10px 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  min-width: 200px;
+}
+
+.workspace-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dashboard-section {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-section h2 {
+  margin: 0 0 20px 0;
+  color: #333;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.metric-card {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 20px;
+  text-align: center;
+}
+
+.metric-card h3 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.metric-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+}
+
+.trends-chart {
+  margin-bottom: 30px;
+}
+
+.trends-chart h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+}
+
+.trends-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+}
+
+.trend-item {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 15px;
+  text-align: center;
+}
+
+.day {
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.sentiment-bar {
+  width: 100%;
+  height: 8px;
+  background: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.sentiment-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.sentiment-value {
+  font-size: 12px;
+  color: #666;
+}
+
+.top-channels {
+  margin-bottom: 30px;
+}
+
+.top-channels h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+}
+
+.channels-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.channel-item {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.channel-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.channel-stats {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.sentiment {
+  font-weight: 500;
+}
+
+.messages {
+  color: #666;
+  font-size: 14px;
+}
+
+.insights-section {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.insights-section h2 {
+  margin: 0 0 20px 0;
+  color: #333;
+}
+
+.generate-insights-btn {
+  padding: 12px 24px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 20px;
+}
+
+.generate-insights-btn:hover {
+  background: #218838;
+}
+
+.generate-insights-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.insights-content {
+  margin-top: 20px;
+}
+
+.metrics-overview {
+  margin-bottom: 30px;
+}
+
+.metrics-overview h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.metric {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.metric .label {
+  color: #333;
+  font-weight: 500;
+}
+
+.metric .value {
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.recommendations h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+}
+
+.recommendation-card {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 20px;
+  margin-bottom: 15px;
+}
+
+.rec-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.rec-header h4 {
+  margin: 0;
+  color: #333;
+}
+
+.priority {
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.recommendation-card p {
+  margin: 0 0 15px 0;
+  color: #666;
+  line-height: 1.5;
+}
+
+.action-items {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 15px;
+}
+
+.action-items strong {
+  color: #333;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.action-items ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.action-items li {
+  margin-bottom: 5px;
+  color: #666;
+}
+
+.alerts-section {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.alerts-section h2 {
+  margin: 0 0 20px 0;
+  color: #333;
+}
+
+.alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.alert-card {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 15px;
+}
+
+.alert-header {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.severity {
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.type {
+  font-weight: 500;
+  color: #333;
+}
+
+.timestamp {
+  color: #666;
+  font-size: 14px;
+}
+
+.alert-message {
+  margin: 0 0 8px 0;
+  color: #333;
+  line-height: 1.4;
+}
+
+.alert-user {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .employee-engagement {
+    padding: 10px;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .trends-grid {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .channel-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .channel-stats {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .metric {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+}

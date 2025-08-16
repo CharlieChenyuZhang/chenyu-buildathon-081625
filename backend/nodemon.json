@@ -1,0 +1,30 @@
+{
+  "watch": [
+    "server.js",
+    "routes/",
+    "utils/",
+    "scripts/",
+    "data/"
+  ],
+  "ext": "js,json",
+  "ignore": [
+    "node_modules/",
+    "uploads/",
+    "*.log",
+    "*.backup.*"
+  ],
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "delay": "1000",
+  "verbose": true,
+  "restartable": "rs",
+  "colours": true,
+  "execMap": {
+    "js": "node"
+  },
+  "events": {
+    "restart": "echo '🔄 Server restarted due to changes'",
+    "crash": "echo '💥 Server crashed, restarting...'"
+  }
+}
