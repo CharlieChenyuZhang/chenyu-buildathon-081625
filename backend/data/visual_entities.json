@@ -1,4 +1,596 @@
 {
-  "entities": [],
-  "lastUpdated": "2025-08-16T19:23:16.162Z"
+  "entities": [
+    {
+      "id": "10336a18-9015-45d0-96f2-f5955c7b79f8",
+      "filename": "1094929b-3c59-48aa-a506-61a143341e34-1755373735557.jpg",
+      "originalName": "clark-tibbs-oqStl2L5oxI-unsplash.jpg",
+      "path": "/Users/charlie/github.com/chenyu-buildathon-081625/backend/uploads/screenshots/1094929b-3c59-48aa-a506-61a143341e34-1755373735557.jpg",
+      "size": 305473,
+      "uploadedAt": "2025-08-16T19:49:04.173Z",
+      "processed": true,
+      "folder": null,
+      "analysis": {
+        "textContent": "DO SOMETHING GREAT",
+        "visualDescription": "The image features a neon sign displaying the phrase \"DO SOMETHING GREAT\" in all capital letters. The text is illuminated with a bright white light, which provides a stark contrast against the dark background. The layout is centered, with the words spanning almost the entire width of the image.\n\nEach letter is crafted in a thin, sans-serif font typical of neon signs, giving it a modern and sleek appearance. The letters are evenly spaced, creating a sense of balance and uniformity. \n\nAround the letters, a rectangular frame outlines the sign, constructed from the same neon tubing, adding structure to the composition. The background is completely black, which enhances the luminosity of the neon and makes the text the focal point of the image.\n\nThere are no UI components or interactive elements, as this is an image of a physical sign rather than a digital display. The overall aesthetic is minimalist, conveying a motivational message through the simplicity and brightness of the visual design.",
+        "entityAnalysis": {
+          "entities": [
+            {
+              "id": "entity1",
+              "type": "text",
+              "label": "neon sign text",
+              "description": "Neon sign displaying the text 'DO SOMETHING GREAT'",
+              "confidence": 0.98,
+              "bbox": {
+                "x": 0.1,
+                "y": 0.4,
+                "width": 0.8,
+                "height": 0.2
+              },
+              "attributes": {
+                "color": "white",
+                "size": "large",
+                "text": "DO SOMETHING GREAT",
+                "style": "neon, bold"
+              }
+            },
+            {
+              "id": "entity2",
+              "type": "object",
+              "label": "sign frame",
+              "description": "Metal frame holding the neon sign",
+              "confidence": 0.95,
+              "bbox": {
+                "x": 0.05,
+                "y": 0.3,
+                "width": 0.9,
+                "height": 0.4
+              },
+              "attributes": {
+                "color": "black",
+                "style": "industrial, rectangular"
+              }
+            }
+          ],
+          "summary": {
+            "total_entities": 2,
+            "primary_objects": [
+              "text",
+              "object"
+            ],
+            "dominant_colors": [
+              "white",
+              "black"
+            ],
+            "ui_components": []
+          }
+        },
+        "processedAt": "2025-08-16T19:49:04.171Z",
+        "analysisVersion": "1.0"
+      },
+      "metadata": {
+        "extractedText": "DO SOMETHING GREAT",
+        "visualElements": [],
+        "dominantColors": [
+          "white",
+          "black"
+        ],
+        "primaryObjects": [
+          "text",
+          "object"
+        ],
+        "totalEntities": 2,
+        "entityTypes": [
+          "text",
+          "object"
+        ]
+      },
+      "tags": [
+        "white",
+        "black",
+        "text",
+        "object",
+        "neon sign text",
+        "sign frame"
+      ]
+    },
+    {
+      "id": "6e6c31ad-0b23-48ea-a375-bd849ac369a1",
+      "filename": "2445a5bf-07d8-4bbd-88d0-6c66362d81c4-1755373735571.jpg",
+      "originalName": "diego-ph-fIq0tET6llw-unsplash.jpg",
+      "path": "/Users/charlie/github.com/chenyu-buildathon-081625/backend/uploads/screenshots/2445a5bf-07d8-4bbd-88d0-6c66362d81c4-1755373735571.jpg",
+      "size": 1368133,
+      "uploadedAt": "2025-08-16T19:49:14.916Z",
+      "processed": true,
+      "folder": null,
+      "analysis": {
+        "textContent": "No text found.",
+        "visualDescription": "The image depicts a person holding a light bulb between their thumb and index finger against a vibrant sky backdrop. The light bulb is clear, and its interior components, such as the filament, are visible, providing a sense of delicate intricacy. It is positioned centrally, drawing the viewer's attention immediately.\n\nThe background features a gradient sky that transitions smoothly from soft pink at the bottom to a light blue at the top. This creates a soothing and dreamy atmosphere. The colors are pastel and harmonious, enhancing the image's overall calm and contemplative mood.\n\nThe hand holding the bulb is positioned towards the right side of the image, with the fingers elegantly curved around the bulb. The skin tone contrasts subtly with the sky, and the sleeve of the person's garment is a light color that complements the palette, adding to the composition's balance.\n\nThere are no visible UI components, text, or interactive elements, indicating that this is likely a photograph meant for illustrative or inspirational purposes. The focus on simplicity and striking contrasts between the bulb, hand, and sky emphasize creativity and innovation themes.",
+        "entityAnalysis": {
+          "entities": [
+            {
+              "id": "entity_1",
+              "type": "object",
+              "label": "light bulb",
+              "description": "A clear light bulb being held by a hand.",
+              "confidence": 0.95,
+              "bbox": {
+                "x": 0.4,
+                "y": 0.5,
+                "width": 0.2,
+                "height": 0.3
+              },
+              "attributes": {
+                "color": "transparent",
+                "size": "medium",
+                "style": "classic bulb shape"
+              }
+            },
+            {
+              "id": "entity_2",
+              "type": "object",
+              "label": "hand",
+              "description": "A hand holding the light bulb from the base.",
+              "confidence": 0.95,
+              "bbox": {
+                "x": 0.3,
+                "y": 0.6,
+                "width": 0.3,
+                "height": 0.4
+              },
+              "attributes": {
+                "color": "skin tone",
+                "size": "medium",
+                "style": "fingers gripping the bulb"
+              }
+            }
+          ],
+          "summary": {
+            "total_entities": 2,
+            "primary_objects": [
+              "light bulb",
+              "hand"
+            ],
+            "dominant_colors": [
+              "blue",
+              "pink",
+              "skin tone"
+            ],
+            "ui_components": []
+          }
+        },
+        "processedAt": "2025-08-16T19:49:14.916Z",
+        "analysisVersion": "1.0"
+      },
+      "metadata": {
+        "extractedText": "No text found.",
+        "visualElements": [],
+        "dominantColors": [
+          "blue",
+          "pink",
+          "skin tone"
+        ],
+        "primaryObjects": [
+          "light bulb",
+          "hand"
+        ],
+        "totalEntities": 2,
+        "entityTypes": [
+          "object",
+          "object"
+        ]
+      },
+      "tags": [
+        "blue",
+        "pink",
+        "skin tone",
+        "light bulb",
+        "hand"
+      ]
+    },
+    {
+      "id": "753e2147-9f52-4fe2-b84f-6549cc6c0b2e",
+      "filename": "fcd29333-a47f-4491-908b-027dbfb4ca85-1755373735585.jpg",
+      "originalName": "210226040722-01-pokemon-anniversary-design.jpg",
+      "path": "/Users/charlie/github.com/chenyu-buildathon-081625/backend/uploads/screenshots/fcd29333-a47f-4491-908b-027dbfb4ca85-1755373735585.jpg",
+      "size": 108338,
+      "uploadedAt": "2025-08-16T19:49:22.052Z",
+      "processed": true,
+      "folder": null,
+      "analysis": {
+        "textContent": "No text found.",
+        "visualDescription": "The image depicts an illustration of a fictional creature that appears to be a hybrid between a dinosaur and a plant. It has a bulb-like structure on its back, representing its plant characteristics.\n\n### Visual Elements:\n- **Body Shape:** The creature has a squat, quadrupedal body with a rounded, smooth appearance.\n- **Head:** The head is large relative to the body, with prominent cheekbones and a wide, friendly mouth. It shows a slight smile.\n- **Eyes:** The eyes are large and oval-shaped, with red irises and white highlights indicating a cute, cartoony style.\n- **Skin Texture:** The skin is smooth with patches of darker green, suggesting a camouflage or natural pattern.\n\n### Colors:\n- **Primary Color:** The main body color is a soft green.\n- **Secondary Color:** A darker green is used for accent markings and the bulb on its back.\n- **Eyes:** The eyes have a striking red hue with white highlights.\n\n### Layout:\n- The creature is centered in the image, facing slightly towards the right, as if in mid-step. This suggests motion and a lively character.\n- The background is plain white, drawing all attention to the creature itself.\n\n### Interactive Elements:\n- **Stylistic Elements:** The image is highly stylized in a cartoon fashion, with bold outlines and solid colors, which appeals to a broad audience.\n- **Expressive Details:** The position of the eyes and mouth conveys a playful and approachable demeanor.\n\nThe simplicity and use of color make the creature visually appealing and give it a friendly, whimsical personality.",
+        "entityAnalysis": {
+          "entities": [
+            {
+              "id": "entity_1",
+              "type": "object",
+              "label": "animated creature",
+              "description": "An illustrated green creature with a bulb on its back, featuring large eyes and a broad smile.",
+              "confidence": 0.98,
+              "bbox": {
+                "x": 0.1,
+                "y": 0.1,
+                "width": 0.8,
+                "height": 0.8
+              },
+              "attributes": {
+                "color": "green",
+                "size": "medium",
+                "style": "cartoonish"
+              }
+            }
+          ],
+          "summary": {
+            "total_entities": 1,
+            "primary_objects": [
+              "animated creature"
+            ],
+            "dominant_colors": [
+              "green",
+              "red",
+              "white"
+            ],
+            "ui_components": []
+          }
+        },
+        "processedAt": "2025-08-16T19:49:22.052Z",
+        "analysisVersion": "1.0"
+      },
+      "metadata": {
+        "extractedText": "No text found.",
+        "visualElements": [],
+        "dominantColors": [
+          "green",
+          "red",
+          "white"
+        ],
+        "primaryObjects": [
+          "animated creature"
+        ],
+        "totalEntities": 1,
+        "entityTypes": [
+          "object"
+        ]
+      },
+      "tags": [
+        "green",
+        "red",
+        "white",
+        "animated creature"
+      ]
+    },
+    {
+      "id": "a7c088d7-c0aa-4330-90bf-ed18eb21a4d8",
+      "filename": "2705c6a1-a374-4c93-b529-3b4a18e6e2fb-1755373735585.jpg",
+      "originalName": "florian-klauer-nptLmg6jqDo-unsplash.jpg",
+      "path": "/Users/charlie/github.com/chenyu-buildathon-081625/backend/uploads/screenshots/2705c6a1-a374-4c93-b529-3b4a18e6e2fb-1755373735585.jpg",
+      "size": 2102326,
+      "uploadedAt": "2025-08-16T19:49:31.965Z",
+      "processed": true,
+      "folder": null,
+      "analysis": {
+        "textContent": "No text found.",
+        "visualDescription": "The image features a minimalist composition set against a soft, pastel blue background. At the center is a simple, vintage wooden chair painted in white, which has a distressed finish, revealing hints of the underlying wood. The chair is front-facing, and the shadows cast by its legs suggest a light source from the left.\n\nAbove the chair, a large, glossy pink balloon is tethered by a thin white string. The balloon is prominent, its bright color contrasting with the muted background and chair, drawing the viewer’s attention. The string appears taut, indicating the balloon is filled with helium and floating upwards.\n\nThere are no UI components or interactive elements present, as this is a static, artistic image, showcasing a serene and whimsical scene. The composition emphasizes simplicity and lightness, creating an airy, dreamlike atmosphere.",
+        "entityAnalysis": {
+          "entities": [
+            {
+              "id": "entity_1",
+              "type": "object",
+              "label": "balloon",
+              "description": "A large pink balloon tied with a string.",
+              "confidence": 0.95,
+              "bbox": {
+                "x": 0.4,
+                "y": 0.1,
+                "width": 0.3,
+                "height": 0.5
+              },
+              "attributes": {
+                "color": "pink",
+                "size": "large",
+                "style": "spherical"
+              }
+            },
+            {
+              "id": "entity_2",
+              "type": "object",
+              "label": "chair",
+              "description": "A simple wooden chair with a distressed white finish.",
+              "confidence": 0.95,
+              "bbox": {
+                "x": 0.35,
+                "y": 0.6,
+                "width": 0.3,
+                "height": 0.3
+              },
+              "attributes": {
+                "color": "white",
+                "size": "medium",
+                "style": "vintage, rustic"
+              }
+            }
+          ],
+          "summary": {
+            "total_entities": 2,
+            "primary_objects": [
+              "balloon",
+              "chair"
+            ],
+            "dominant_colors": [
+              "pink",
+              "white",
+              "blue-gray"
+            ],
+            "ui_components": []
+          }
+        },
+        "processedAt": "2025-08-16T19:49:31.964Z",
+        "analysisVersion": "1.0"
+      },
+      "metadata": {
+        "extractedText": "No text found.",
+        "visualElements": [],
+        "dominantColors": [
+          "pink",
+          "white",
+          "blue-gray"
+        ],
+        "primaryObjects": [
+          "balloon",
+          "chair"
+        ],
+        "totalEntities": 2,
+        "entityTypes": [
+          "object",
+          "object"
+        ]
+      },
+      "tags": [
+        "pink",
+        "white",
+        "blue-gray",
+        "balloon",
+        "chair"
+      ]
+    },
+    {
+      "id": "4a1d7090-ee2a-4cf8-a3cc-60f0af1299a5",
+      "filename": "42e8f16e-e76e-4720-93d7-b8ee843361b5-1755373735604.png",
+      "originalName": "cutest-pokemon-of-all-time.png",
+      "path": "/Users/charlie/github.com/chenyu-buildathon-081625/backend/uploads/screenshots/42e8f16e-e76e-4720-93d7-b8ee843361b5-1755373735604.png",
+      "size": 525662,
+      "uploadedAt": "2025-08-16T19:49:38.634Z",
+      "processed": true,
+      "folder": null,
+      "analysis": {
+        "textContent": "No text found.",
+        "visualDescription": "The image depicts a character with a round, pink body, resembling a puffball. It features large, expressive blue eyes with a glossy finish, highlighting two white reflections in each eye, giving them a shiny appearance. The character has small, triangular ears with black interiors and a curl of hair on its forehead.\n\nThe pink body is smooth and uniform in color with some subtle shading to give a three-dimensional effect. The character has short arms and feet, adding to its cute and playful appearance. Its mouth is a simple line, curved slightly upwards, suggesting a content or happy expression.\n\nThe background is plain white, allowing the character to stand out prominently in the image. There are no UI components or interactive elements visible in the image. The focus is entirely on the character itself, with no additional design elements or distractions.",
+        "entityAnalysis": {
+          "entities": [
+            {
+              "id": "1",
+              "type": "object",
+              "label": "cartoon character",
+              "description": "A pink, round character with large, blue eyes and pointed ears.",
+              "confidence": 0.99,
+              "bbox": {
+                "x": 0.2,
+                "y": 0.1,
+                "width": 0.6,
+                "height": 0.8
+              },
+              "attributes": {
+                "color": "pink",
+                "size": "medium",
+                "style": "cute, animated"
+              }
+            }
+          ],
+          "summary": {
+            "total_entities": 1,
+            "primary_objects": [
+              "object"
+            ],
+            "dominant_colors": [
+              "pink",
+              "blue"
+            ],
+            "ui_components": []
+          }
+        },
+        "processedAt": "2025-08-16T19:49:38.634Z",
+        "analysisVersion": "1.0"
+      },
+      "metadata": {
+        "extractedText": "No text found.",
+        "visualElements": [],
+        "dominantColors": [
+          "pink",
+          "blue"
+        ],
+        "primaryObjects": [
+          "object"
+        ],
+        "totalEntities": 1,
+        "entityTypes": [
+          "object"
+        ]
+      },
+      "tags": [
+        "pink",
+        "blue",
+        "object",
+        "cartoon character"
+      ]
+    },
+    {
+      "id": "aa50e3aa-ee1b-4269-b656-99854f4fd9eb",
+      "filename": "04ba2569-94c4-4cb5-885e-5b6f988aaeee-1755373735632.png",
+      "originalName": "collab_pokemon_catalog_charizard-min.png",
+      "path": "/Users/charlie/github.com/chenyu-buildathon-081625/backend/uploads/screenshots/04ba2569-94c4-4cb5-885e-5b6f988aaeee-1755373735632.png",
+      "size": 27123,
+      "uploadedAt": "2025-08-16T19:49:42.511Z",
+      "processed": false,
+      "folder": null,
+      "analysis": null,
+      "metadata": null,
+      "tags": []
+    },
+    {
+      "id": "1fd18e81-6047-4654-b175-f0dcf0347380",
+      "filename": "9bc3c35b-dba7-4c3c-9c48-8c0a6f016ba3-1755373735634.jpg",
+      "originalName": "austin-chan-ukzHlkoz1IE-unsplash.jpg",
+      "path": "/Users/charlie/github.com/chenyu-buildathon-081625/backend/uploads/screenshots/9bc3c35b-dba7-4c3c-9c48-8c0a6f016ba3-1755373735634.jpg",
+      "size": 1595989,
+      "uploadedAt": "2025-08-16T19:50:04.041Z",
+      "processed": true,
+      "folder": null,
+      "analysis": {
+        "textContent": "THIS IS  \nTHE SIGN  \nYOU'VE BEEN  \nLOOKING FOR  \nNOSE JEWELRY",
+        "visualDescription": "The image depicts an indoor setting featuring a red brick wall as the backdrop. Mounted on this wall is a neon sign with glowing white letters that read: \"THIS IS THE SIGN YOU'VE BEEN LOOKING FOR.\" The neon light is bright and casts a subtle glow onto the brick surface, creating a striking contrast between the modern sign and the vintage brick texture.\n\nBelow the neon sign, there is a shelf displaying a variety of decorative items. This includes colorful pillows with artistic illustrations. For example, one pillow features a Halloween-esque skeleton design, while another shows a witch-like character with vibrant colors. \n\nAdditionally, part of a skateboard or similar object is visible, positioned vertically and partially obscured by the pillows. While most of it is white, there are some hand-drawn elements or designs on it.\n\nOn the bottom left, there's a sign that reads \"NOSE JEWELRY\", possibly indicating this is a retail space that sells body jewelry and related items.\n\nThe overall ambiance combines industrial and quirky, artistic elements, suggesting a space that is both modern and eclectic. There are no visible UI components or interactive elements, as this appears to be a static interior design.",
+        "entityAnalysis": {
+          "entities": [
+            {
+              "id": "entity_1",
+              "type": "text",
+              "label": "Neon Sign",
+              "description": "Glowing text on the wall with the message 'THIS IS THE SIGN YOU'VE BEEN LOOKING FOR'",
+              "confidence": 0.95,
+              "bbox": {
+                "x": 0.4,
+                "y": 0.1,
+                "width": 0.3,
+                "height": 0.5
+              },
+              "attributes": {
+                "color": "white",
+                "size": "large",
+                "style": "neon, glowing"
+              }
+            },
+            {
+              "id": "entity_2",
+              "type": "object",
+              "label": "Brick Wall",
+              "description": "Background made of exposed bricks",
+              "confidence": 0.9,
+              "bbox": {
+                "x": 0,
+                "y": 0,
+                "width": 1,
+                "height": 1
+              },
+              "attributes": {
+                "color": "red",
+                "style": "rustic"
+              }
+            },
+            {
+              "id": "entity_3",
+              "type": "object",
+              "label": "Pillows",
+              "description": "Decorative pillows with colorful designs below the neon sign",
+              "confidence": 0.85,
+              "bbox": {
+                "x": 0.1,
+                "y": 0.6,
+                "width": 0.2,
+                "height": 0.1
+              },
+              "attributes": {
+                "color": "multicolored",
+                "style": "artistic"
+              }
+            },
+            {
+              "id": "entity_4",
+              "type": "object",
+              "label": "Skateboard",
+              "description": "A skateboard is leaning against the wall below the sign",
+              "confidence": 0.8,
+              "bbox": {
+                "x": 0.3,
+                "y": 0.6,
+                "width": 0.1,
+                "height": 0.3
+              },
+              "attributes": {
+                "color": "white with graphics",
+                "style": "modern"
+              }
+            },
+            {
+              "id": "entity_5",
+              "type": "text",
+              "label": "Label",
+              "description": "A sign with the text 'NOSE JEWELRY' is visible below the neon sign",
+              "confidence": 0.85,
+              "bbox": {
+                "x": 0.5,
+                "y": 0.7,
+                "width": 0.2,
+                "height": 0.1
+              },
+              "attributes": {
+                "color": "white",
+                "style": "italic, bold"
+              }
+            }
+          ],
+          "summary": {
+            "total_entities": 5,
+            "primary_objects": [
+              "neon sign",
+              "brick wall",
+              "decorations"
+            ],
+            "dominant_colors": [
+              "red",
+              "white",
+              "multicolored"
+            ],
+            "ui_components": []
+          }
+        },
+        "processedAt": "2025-08-16T19:50:04.041Z",
+        "analysisVersion": "1.0"
+      },
+      "metadata": {
+        "extractedText": "THIS IS  \nTHE SIGN  \nYOU'VE BEEN  \nLOOKING FOR  \nNOSE JEWELRY",
+        "visualElements": [],
+        "dominantColors": [
+          "red",
+          "white",
+          "multicolored"
+        ],
+        "primaryObjects": [
+          "neon sign",
+          "brick wall",
+          "decorations"
+        ],
+        "totalEntities": 5,
+        "entityTypes": [
+          "text",
+          "object",
+          "object",
+          "object",
+          "text"
+        ]
+      },
+      "tags": [
+        "red",
+        "white",
+        "multicolored",
+        "neon sign",
+        "brick wall",
+        "decorations",
+        "Neon Sign",
+        "Brick Wall",
+        "Pillows",
+        "Skateboard",
+        "Label"
+      ]
+    }
+  ],
+  "lastUpdated": "2025-08-16T19:50:04.047Z"
 }

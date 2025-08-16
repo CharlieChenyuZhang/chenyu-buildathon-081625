@@ -5,11 +5,48 @@ require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 5001;
+const isDevelopment = process.env.NODE_ENV === "development";
+
+// Development configuration
+let devConfig = {};
+if (isDevelopment) {
+  try {
+    devConfig = require("./dev.config");
+  } catch (error) {
+    console.log("⚠️  dev.config.js not found, using default settings");
+  }
+}
 
 // Middleware
-app.use(cors());
+app.use(
+  cors(
+    devConfig.server?.cors || {
+      origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
+      credentials: true,
+    }
+  )
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Development logging middleware
+if (isDevelopment && devConfig.features?.requestLogging) {
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on("finish", () => {
+      const duration = Date.now() - start;
+      const status = res.statusCode;
+      const method = req.method;
+      const url = req.url;
+      const statusColor =
+        status >= 400 ? "\x1b[31m" : status >= 300 ? "\x1b[33m" : "\x1b[32m";
+      console.log(
+        `${statusColor}${method}\x1b[0m ${url} - ${status} (${duration}ms)`
+      );
+    });
+    next();
+  });
+}
 
 // Import route modules
 const visualMemoryRoutes = require("./routes/visualMemory");
@@ -32,12 +69,24 @@ app.get("/api/health", (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: "Something went wrong!" });
+  console.error("❌ Error:", err.message);
+  if (isDevelopment && devConfig.features?.stackTraces) {
+    console.error("Stack trace:", err.stack);
+  }
+  res.status(500).json({
+    error: "Something went wrong!",
+    ...(isDevelopment && { details: err.message }),
+  });
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  if (isDevelopment) {
+    console.log(`📡 Development mode enabled`);
+    console.log(`🔄 Hot reload active - watching for changes`);
+    console.log(`🌐 API available at http://localhost:${PORT}`);
+    console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+  }
 });
 
 module.exports = app;

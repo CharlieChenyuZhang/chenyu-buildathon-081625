@@ -11,6 +11,14 @@ function VisualMemory() {
   const [uploadedScreenshots, setUploadedScreenshots] = useState([]);
   const [uploadSummary, setUploadSummary] = useState(null);
   const [uploadErrors, setUploadErrors] = useState([]);
+  const [searchFilters, setSearchFilters] = useState({
+    minConfidence: 0.1,
+    folder: "",
+    limit: 5, // Changed from 20 to 5 to return top 5 matches
+  });
+  const [searchStats, setSearchStats] = useState(null);
+  const [sortBy, setSortBy] = useState("confidence"); // confidence, date, name
+  const [activeTab, setActiveTab] = useState("upload"); // upload, search, allImages
 
   const triggerFileInput = () => {
     const fileInput = document.getElementById("file-upload");
@@ -181,16 +189,57 @@ function VisualMemory() {
     try {
       const response = await axios.post("/api/visual-memory/search", {
         query: searchQuery,
-        filters: {},
+        filters: searchFilters,
       });
 
       setSearchResults(response.data.results);
+      setSearchStats(response.data.searchStats);
     } catch (error) {
       console.error("Search error:", error);
       alert("Search failed");
     } finally {
       setIsSearching(false);
     }
+  };
+
+  const handleFilterChange = (filterName, value) => {
+    setSearchFilters((prev) => ({
+      ...prev,
+      [filterName]: value,
+    }));
+  };
+
+  const sortResults = (results) => {
+    switch (sortBy) {
+      case "date":
+        return [...results].sort(
+          (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+        );
+      case "name":
+        return [...results].sort((a, b) =>
+          (a.originalName || a.filename).localeCompare(
+            b.originalName || b.filename
+          )
+        );
+      case "confidence":
+      default:
+        return [...results].sort((a, b) => b.confidence - a.confidence);
+    }
+  };
+
+  const getConfidenceColor = (confidence) => {
+    if (confidence >= 0.8) return "#34c759";
+    if (confidence >= 0.6) return "#ff9500";
+    if (confidence >= 0.4) return "#ff3b30";
+    return "#8e8e93";
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const loadScreenshots = async () => {
@@ -234,216 +283,359 @@ function VisualMemory() {
         build your searchable database.
       </p>
 
-      <div className="section upload-section">
-        <h2>Upload Screenshots</h2>
+      {/* Tab Navigation */}
+      <div className="tab-navigation">
+        <button
+          className={`tab-button ${activeTab === "upload" ? "active" : ""}`}
+          onClick={() => setActiveTab("upload")}
+        >
+          📤 Upload
+        </button>
+        <button
+          className={`tab-button ${activeTab === "search" ? "active" : ""}`}
+          onClick={() => setActiveTab("search")}
+        >
+          🔍 Search
+        </button>
+        <button
+          className={`tab-button ${activeTab === "allImages" ? "active" : ""}`}
+          onClick={() => setActiveTab("allImages")}
+        >
+          🖼️ All Images ({uploadedScreenshots.length})
+        </button>
+      </div>
 
-        <div className="upload-area">
-          <input
-            type="file"
-            multiple={true}
-            accept="image/*"
-            onChange={handleFileSelect}
-            className="file-input"
-            id="file-upload"
-            webkitdirectory=""
-            directory=""
-            style={{ display: "none" }}
-          />
-          <div className="upload-area-click" onClick={triggerFileInput}>
-            <div className="upload-content">
-              <div className="upload-icon">📁</div>
-              <p className="upload-text">Click to select a folder of images</p>
-              <p className="upload-hint">
-                Supported formats: JPEG, PNG, GIF, BMP, WebP
-              </p>
+      {activeTab === "upload" && (
+        <div className="section upload-section">
+          <h2>Upload Screenshots</h2>
+
+          <div className="upload-area">
+            <input
+              type="file"
+              multiple={true}
+              accept="image/*"
+              onChange={handleFileSelect}
+              className="file-input"
+              id="file-upload"
+              webkitdirectory=""
+              directory=""
+              style={{ display: "none" }}
+            />
+            <div className="upload-area-click" onClick={triggerFileInput}>
+              <div className="upload-content">
+                <div className="upload-icon">📁</div>
+                <p className="upload-text">
+                  Click to select a folder of images
+                </p>
+                <p className="upload-hint">
+                  Supported formats: JPEG, PNG, GIF, BMP, WebP
+                </p>
+              </div>
             </div>
+            {files.length > 0 && (
+              <button
+                onClick={handleUpload}
+                disabled={isUploading}
+                className={`upload-btn ${isUploading ? "loading" : ""}`}
+              >
+                {isUploading
+                  ? "Uploading..."
+                  : `Upload ${files.length} File${files.length > 1 ? "s" : ""}`}
+              </button>
+            )}
           </div>
+
           {files.length > 0 && (
-            <button
-              onClick={handleUpload}
-              disabled={isUploading}
-              className={`upload-btn ${isUploading ? "loading" : ""}`}
-            >
-              {isUploading
-                ? "Uploading..."
-                : `Upload ${files.length} File${files.length > 1 ? "s" : ""}`}
-            </button>
+            <div className="selected-files">
+              <h3>Selected Files ({files.length})</h3>
+              <div className="file-list">
+                {files.map((file, index) => (
+                  <div key={index} className="file-item">
+                    <span className="file-icon">
+                      {getFileTypeIcon(file.name)}
+                    </span>
+                    <span className="file-name">{file.name}</span>
+                    <span className="file-size">
+                      ({(file.size / 1024).toFixed(1)} KB)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {uploadSummary && (
+            <div className="upload-summary">
+              <h3>Upload Summary</h3>
+              <div className="summary-grid">
+                <div className="summary-item">
+                  <span className="summary-label">Total Files:</span>
+                  <span className="summary-value">
+                    {uploadSummary.totalFiles}
+                  </span>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-label">Successfully Processed:</span>
+                  <span className="summary-value success">
+                    {uploadSummary.successfullyProcessed}
+                  </span>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-label">Processing Errors:</span>
+                  <span className="summary-value error">
+                    {uploadSummary.processingErrors}
+                  </span>
+                </div>
+                {uploadSummary.folderStructure.hasFolders && (
+                  <div className="summary-item">
+                    <span className="summary-label">Folders:</span>
+                    <span className="summary-value">
+                      {uploadSummary.folderStructure.folders.join(", ")}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {uploadErrors.length > 0 && (
+            <div className="upload-errors">
+              <h3>Processing Errors ({uploadErrors.length})</h3>
+              <div className="error-list">
+                {uploadErrors.map((error, index) => (
+                  <div key={index} className="error-item">
+                    <span className="error-file">{error.filename}</span>
+                    <span className="error-message">{error.error}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
+      )}
 
-        {files.length > 0 && (
-          <div className="selected-files">
-            <h3>Selected Files ({files.length})</h3>
-            <div className="file-list">
-              {files.map((file, index) => (
-                <div key={index} className="file-item">
-                  <span className="file-icon">
-                    {getFileTypeIcon(file.name)}
-                  </span>
-                  <span className="file-name">{file.name}</span>
-                  <span className="file-size">
-                    ({(file.size / 1024).toFixed(1)} KB)
-                  </span>
-                </div>
-              ))}
-            </div>
+      {activeTab === "search" && (
+        <div className="section search-section">
+          <h2>Search Screenshots</h2>
+
+          <div className="search-area">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="e.g., 'error message about auth' OR 'screenshot with blue button' OR 'neon sign'"
+              className="search-input"
+              onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+            />
+            <button
+              onClick={handleSearch}
+              disabled={isSearching}
+              className={`search-btn ${isSearching ? "loading" : ""}`}
+            >
+              {isSearching ? "Searching..." : "Search"}
+            </button>
           </div>
-        )}
 
-        {uploadSummary && (
-          <div className="upload-summary">
-            <h3>Upload Summary</h3>
-            <div className="summary-grid">
-              <div className="summary-item">
-                <span className="summary-label">Total Files:</span>
-                <span className="summary-value">
-                  {uploadSummary.totalFiles}
+          {/* Search Stats */}
+          {searchStats && (
+            <div className="search-stats">
+              <div className="stat-item">
+                <span className="stat-label">Total Entities:</span>
+                <span className="stat-value">{searchStats.totalEntities}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Processed:</span>
+                <span className="stat-value">
+                  {searchStats.processedEntities}
                 </span>
               </div>
-              <div className="summary-item">
-                <span className="summary-label">Successfully Processed:</span>
-                <span className="summary-value success">
-                  {uploadSummary.successfullyProcessed}
+              <div className="stat-item">
+                <span className="stat-label">Query Words:</span>
+                <span className="stat-value">
+                  {searchStats.queryWords.join(", ")}
                 </span>
               </div>
-              <div className="summary-item">
-                <span className="summary-label">Processing Errors:</span>
-                <span className="summary-value error">
-                  {uploadSummary.processingErrors}
+              <div className="stat-item">
+                <span className="stat-label">Avg Confidence:</span>
+                <span className="stat-value">
+                  {(searchStats.averageConfidence * 100).toFixed(1)}%
                 </span>
               </div>
-              {uploadSummary.folderStructure.hasFolders && (
-                <div className="summary-item">
-                  <span className="summary-label">Folders:</span>
-                  <span className="summary-value">
-                    {uploadSummary.folderStructure.folders.join(", ")}
-                  </span>
-                </div>
-              )}
             </div>
-          </div>
-        )}
-
-        {uploadErrors.length > 0 && (
-          <div className="upload-errors">
-            <h3>Processing Errors ({uploadErrors.length})</h3>
-            <div className="error-list">
-              {uploadErrors.map((error, index) => (
-                <div key={index} className="error-item">
-                  <span className="error-file">{error.filename}</span>
-                  <span className="error-message">{error.error}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="section search-section">
-        <h2>Search Screenshots</h2>
-        <div className="search-area">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="e.g., 'error message about auth' OR 'screenshot with blue button'"
-            className="search-input"
-            onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-          />
-          <button
-            onClick={handleSearch}
-            disabled={isSearching}
-            className={`search-btn ${isSearching ? "loading" : ""}`}
-          >
-            {isSearching ? "Searching..." : "Search"}
-          </button>
+          )}
         </div>
-      </div>
+      )}
 
-      {searchResults.length > 0 && (
+      {searchResults.length > 0 && activeTab === "search" && (
         <div className="section results-section">
-          <h2>Search Results ({searchResults.length})</h2>
+          <div className="results-header">
+            <h2>Top {searchResults.length} Matches (Sorted by Confidence)</h2>
+            <div className="sort-controls">
+              <label>Sort by:</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="confidence">Confidence (Default)</option>
+                <option value="date">Date</option>
+                <option value="name">Name</option>
+              </select>
+            </div>
+          </div>
+
           <div className="results-grid">
-            {searchResults.map((result, index) => (
-              <div key={index} className="result-card">
+            {sortResults(searchResults).map((result, index) => (
+              <div key={result.id} className="result-card">
                 <div className="result-header">
-                  <h3>{result.filename || result.originalName}</h3>
-                  <span className="confidence">
+                  <div className="result-title">
+                    <h3>{result.originalName || result.filename}</h3>
+                    <span className="file-info">
+                      {formatFileSize(result.fileSize)} •{" "}
+                      {new Date(result.timestamp).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <span
+                    className="confidence"
+                    style={{
+                      backgroundColor:
+                        getConfidenceColor(result.confidence) + "20",
+                      color: getConfidenceColor(result.confidence),
+                    }}
+                  >
                     {(result.confidence * 100).toFixed(1)}% match
                   </span>
                 </div>
 
+                {/* Thumbnail */}
+                <div className="result-thumbnail">
+                  <img
+                    src={`/api/visual-memory/thumbnail/${result.id}`}
+                    alt={result.originalName || result.filename}
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                      e.target.nextSibling.style.display = "block";
+                    }}
+                  />
+                  <div
+                    className="thumbnail-placeholder"
+                    style={{ display: "none" }}
+                  >
+                    <span>🖼️</span>
+                    <p>Image not available</p>
+                  </div>
+                </div>
+
                 <div className="result-content">
-                  {result.textMatches.length > 0 && (
-                    <div className="text-matches">
-                      <strong>📝 Text Matches:</strong>
-                      <ul>
-                        {result.textMatches.map((match, i) => (
-                          <li key={i}>{match}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                  {/* Match Details */}
+                  <div className="match-details">
+                    {result.textMatches.length > 0 && (
+                      <div className="match-section text-matches">
+                        <strong>📝 Text Matches:</strong>
+                        <ul>
+                          {result.textMatches.map((match, i) => (
+                            <li key={i}>{match}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
 
-                  {result.visualMatches.length > 0 && (
-                    <div className="visual-matches">
-                      <strong>🎨 Visual Matches:</strong>
-                      <ul>
-                        {result.visualMatches.map((match, i) => (
-                          <li key={i}>{match}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                    {result.visualMatches.length > 0 && (
+                      <div className="match-section visual-matches">
+                        <strong>🎨 Visual Matches:</strong>
+                        <ul>
+                          {result.visualMatches.map((match, i) => (
+                            <li key={i}>{match}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
 
-                  {result.entityMatches.length > 0 && (
-                    <div className="entity-matches">
-                      <strong>🔍 Entity Matches:</strong>
-                      <ul>
-                        {result.entityMatches.map((match, i) => (
-                          <li key={i}>{match}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                    {result.entityMatches.length > 0 && (
+                      <div className="match-section entity-matches">
+                        <strong>🔍 Entity Matches:</strong>
+                        <ul>
+                          {result.entityMatches.map((match, i) => (
+                            <li key={i}>{match}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
 
+                    {result.tagMatches.length > 0 && (
+                      <div className="match-section tag-matches">
+                        <strong>🏷️ Tag Matches:</strong>
+                        <ul>
+                          {result.tagMatches.map((match, i) => (
+                            <li key={i}>{match}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Metadata */}
+                  <div className="result-metadata">
+                    <div className="metadata-row">
+                      <span className="metadata-label">📊 Entities:</span>
+                      <span className="metadata-value">
+                        {result.entityCount}
+                      </span>
+                    </div>
+                    {result.folder && (
+                      <div className="metadata-row">
+                        <span className="metadata-label">📁 Folder:</span>
+                        <span className="metadata-value">{result.folder}</span>
+                      </div>
+                    )}
+                    {result.dominantColors.length > 0 && (
+                      <div className="metadata-row">
+                        <span className="metadata-label">🎨 Colors:</span>
+                        <span className="metadata-value">
+                          {result.dominantColors.slice(0, 3).join(", ")}
+                        </span>
+                      </div>
+                    )}
+                    {result.primaryObjects.length > 0 && (
+                      <div className="metadata-row">
+                        <span className="metadata-label">🔍 Objects:</span>
+                        <span className="metadata-value">
+                          {result.primaryObjects.slice(0, 3).join(", ")}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tags */}
                   {result.tags && result.tags.length > 0 && (
                     <div className="result-tags">
                       <strong>🏷️ Tags:</strong>
                       <div className="tags-list">
-                        {result.tags.slice(0, 6).map((tag, i) => (
+                        {result.tags.slice(0, 8).map((tag, i) => (
                           <span key={i} className="tag">
                             {tag}
                           </span>
                         ))}
-                        {result.tags.length > 6 && (
+                        {result.tags.length > 8 && (
                           <span className="tag">
-                            +{result.tags.length - 6} more
+                            +{result.tags.length - 8} more
                           </span>
                         )}
                       </div>
                     </div>
                   )}
-
-                  <div className="result-metadata">
-                    <small>
-                      📊 {result.entityCount} entities • 📁{" "}
-                      {result.folder || "No folder"} • 📅{" "}
-                      {new Date(result.timestamp).toLocaleDateString()}
-                    </small>
-                  </div>
                 </div>
 
                 <div className="result-footer">
                   <details>
                     <summary>📄 Full Content</summary>
                     <div className="full-content">
-                      {result.textContent && (
-                        <div className="content-section">
-                          <strong>Text Content:</strong>
-                          <p>{result.textContent}</p>
-                        </div>
-                      )}
+                      {result.textContent &&
+                        result.textContent !== "No text found." && (
+                          <div className="content-section">
+                            <strong>Text Content:</strong>
+                            <p>{result.textContent}</p>
+                          </div>
+                        )}
                       {result.visualDescription && (
                         <div className="content-section">
                           <strong>Visual Description:</strong>
@@ -459,128 +651,117 @@ function VisualMemory() {
         </div>
       )}
 
-      {uploadedScreenshots.length > 0 && (
-        <div className="section screenshots-section">
-          <h2>Uploaded Screenshots ({uploadedScreenshots.length})</h2>
-          <div className="screenshots-grid">
-            {uploadedScreenshots.map((screenshot, index) => (
-              <div key={index} className="screenshot-card">
-                <div className="screenshot-header">
-                  <span className="file-icon">
-                    {getFileTypeIcon(
-                      screenshot.filename || screenshot.originalName
+      {activeTab === "allImages" && (
+        <div className="section all-images-section">
+          <h2>All Uploaded Images ({uploadedScreenshots.length})</h2>
+
+          {uploadedScreenshots.length === 0 ? (
+            <div className="no-images-message">
+              <div className="no-images-icon">🖼️</div>
+              <h3>No images uploaded yet</h3>
+              <p>
+                Upload some images using the upload section above to see them
+                here.
+              </p>
+            </div>
+          ) : (
+            <div className="all-images-grid">
+              {uploadedScreenshots.map((screenshot, index) => (
+                <div key={screenshot.id || index} className="image-card">
+                  <div className="image-thumbnail">
+                    <img
+                      src={`/api/visual-memory/thumbnail/${screenshot.id}`}
+                      alt={screenshot.originalName || screenshot.filename}
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                        e.target.nextSibling.style.display = "block";
+                      }}
+                    />
+                    <div
+                      className="thumbnail-placeholder"
+                      style={{ display: "none" }}
+                    >
+                      <span>🖼️</span>
+                    </div>
+                  </div>
+
+                  <div className="image-info">
+                    <h4>{screenshot.originalName || screenshot.filename}</h4>
+                    <p className="upload-date">
+                      Uploaded:{" "}
+                      {new Date(screenshot.uploadedAt).toLocaleDateString()}
+                    </p>
+                    <p className="file-size">
+                      Size: {formatFileSize(screenshot.size)}
+                    </p>
+                    {screenshot.folder && (
+                      <p className="folder-info">📁 {screenshot.folder}</p>
                     )}
-                  </span>
-                  <h4>{screenshot.filename || screenshot.originalName}</h4>
+
+                    <div className="image-status">
+                      {screenshot.processed ? (
+                        <span className="status processed">✅ Processed</span>
+                      ) : (
+                        <span className="status error">
+                          ❌ Processing Failed
+                        </span>
+                      )}
+                    </div>
+
+                    {screenshot.processed && screenshot.metadata && (
+                      <div className="image-metadata">
+                        <div className="metadata-item">
+                          <span className="metadata-label">Entities:</span>
+                          <span className="metadata-value">
+                            {screenshot.metadata.totalEntities}
+                          </span>
+                        </div>
+                        {screenshot.metadata.dominantColors.length > 0 && (
+                          <div className="metadata-item">
+                            <span className="metadata-label">Colors:</span>
+                            <span className="metadata-value">
+                              {screenshot.metadata.dominantColors
+                                .slice(0, 2)
+                                .join(", ")}
+                            </span>
+                          </div>
+                        )}
+                        {screenshot.metadata.primaryObjects.length > 0 && (
+                          <div className="metadata-item">
+                            <span className="metadata-label">Objects:</span>
+                            <span className="metadata-value">
+                              {screenshot.metadata.primaryObjects
+                                .slice(0, 2)
+                                .join(", ")}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {screenshot.tags && screenshot.tags.length > 0 && (
+                      <div className="image-tags">
+                        {screenshot.tags.slice(0, 4).map((tag, idx) => (
+                          <span key={idx} className="tag">
+                            {tag}
+                          </span>
+                        ))}
+                        {screenshot.tags.length > 4 && (
+                          <span className="tag">
+                            +{screenshot.tags.length - 4} more
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <p>
-                  Uploaded:{" "}
-                  {new Date(screenshot.uploadedAt).toLocaleDateString()}
-                </p>
-                {screenshot.folder && (
-                  <p className="folder-info">📁 Folder: {screenshot.folder}</p>
-                )}
-                {screenshot.processed ? (
-                  <div className="status processed">
-                    <span>✅ Processed</span>
-                    {screenshot.metadata && (
-                      <div className="metadata-summary">
-                        <small>
-                          📝 {screenshot.metadata.totalEntities} entities • 🎨{" "}
-                          {screenshot.metadata.dominantColors
-                            .slice(0, 2)
-                            .join(", ")}{" "}
-                          • 🏷️ {screenshot.tags?.slice(0, 3).join(", ")}
-                        </small>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <span className="status error">❌ Processing Failed</span>
-                )}
-
-                {/* Show analysis preview if available */}
-                {screenshot.analysis && (
-                  <div className="analysis-preview">
-                    <details>
-                      <summary>📊 Analysis Details</summary>
-                      <div className="analysis-content">
-                        <div className="analysis-section">
-                          <strong>📝 Text Content:</strong>
-                          <p className="text-content">
-                            {screenshot.analysis.textContent?.substring(0, 100)}
-                            {screenshot.analysis.textContent?.length > 100 &&
-                              "..."}
-                          </p>
-                        </div>
-
-                        <div className="analysis-section">
-                          <strong>🎨 Visual Description:</strong>
-                          <p className="visual-description">
-                            {screenshot.analysis.visualDescription?.substring(
-                              0,
-                              150
-                            )}
-                            {screenshot.analysis.visualDescription?.length >
-                              150 && "..."}
-                          </p>
-                        </div>
-
-                        {screenshot.analysis.entityAnalysis && (
-                          <div className="analysis-section">
-                            <strong>
-                              🔍 Detected Entities (
-                              {screenshot.analysis.entityAnalysis.entities
-                                ?.length || 0}
-                              ):
-                            </strong>
-                            <div className="entities-list">
-                              {screenshot.analysis.entityAnalysis.entities
-                                ?.slice(0, 5)
-                                .map((entity, idx) => (
-                                  <span key={idx} className="entity-tag">
-                                    {entity.label} ({entity.type})
-                                  </span>
-                                ))}
-                              {screenshot.analysis.entityAnalysis.entities
-                                ?.length > 5 && (
-                                <span className="entity-tag">
-                                  +
-                                  {screenshot.analysis.entityAnalysis.entities
-                                    .length - 5}{" "}
-                                  more
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {screenshot.tags && screenshot.tags.length > 0 && (
-                          <div className="analysis-section">
-                            <strong>🏷️ Tags:</strong>
-                            <div className="tags-list">
-                              {screenshot.tags.slice(0, 8).map((tag, idx) => (
-                                <span key={idx} className="tag">
-                                  {tag}
-                                </span>
-                              ))}
-                              {screenshot.tags.length > 8 && (
-                                <span className="tag">
-                                  +{screenshot.tags.length - 8} more
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </details>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
+
+      {/* Removed the uploaded screenshots section since we now have the All Images tab */}
     </div>
   );
 }

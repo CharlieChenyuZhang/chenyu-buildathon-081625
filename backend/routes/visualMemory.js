@@ -18,16 +18,23 @@ if (!fs.existsSync(DATA_DIR)) {
 
 // Initialize storage file if it doesn't exist
 if (!fs.existsSync(STORAGE_FILE)) {
-  fs.writeFileSync(STORAGE_FILE, JSON.stringify({ entities: [], lastUpdated: new Date().toISOString() }, null, 2));
+  fs.writeFileSync(
+    STORAGE_FILE,
+    JSON.stringify(
+      { entities: [], lastUpdated: new Date().toISOString() },
+      null,
+      2
+    )
+  );
 }
 
 // Helper functions for JSON file storage
 function loadVisualEntities() {
   try {
-    const data = fs.readFileSync(STORAGE_FILE, 'utf8');
+    const data = fs.readFileSync(STORAGE_FILE, "utf8");
     return JSON.parse(data);
   } catch (error) {
-    console.error('Error loading visual entities:', error);
+    console.error("Error loading visual entities:", error);
     return { entities: [], lastUpdated: new Date().toISOString() };
   }
 }
@@ -38,7 +45,7 @@ function saveVisualEntities(data) {
     fs.writeFileSync(STORAGE_FILE, JSON.stringify(data, null, 2));
     return true;
   } catch (error) {
-    console.error('Error saving visual entities:', error);
+    console.error("Error saving visual entities:", error);
     return false;
   }
 }
@@ -51,7 +58,7 @@ function addVisualEntity(entity) {
 
 function updateVisualEntity(id, updates) {
   const data = loadVisualEntities();
-  const index = data.entities.findIndex(entity => entity.id === id);
+  const index = data.entities.findIndex((entity) => entity.id === id);
   if (index !== -1) {
     data.entities[index] = { ...data.entities[index], ...updates };
     return saveVisualEntities(data);
@@ -61,7 +68,7 @@ function updateVisualEntity(id, updates) {
 
 function deleteVisualEntity(id) {
   const data = loadVisualEntities();
-  data.entities = data.entities.filter(entity => entity.id !== id);
+  data.entities = data.entities.filter((entity) => entity.id !== id);
   return saveVisualEntities(data);
 }
 
@@ -286,7 +293,7 @@ router.post(
       }
 
       // Store uploaded files in JSON file
-      uploadedFiles.forEach(file => {
+      uploadedFiles.forEach((file) => {
         addVisualEntity({
           id: file.id,
           filename: file.filename,
@@ -328,7 +335,7 @@ router.post(
 // Search screenshots using natural language queries
 router.post("/search", async (req, res) => {
   try {
-    const { query, filters } = req.body;
+    const { query, filters = {} } = req.body;
 
     if (!query) {
       return res.status(400).json({ error: "Search query is required" });
@@ -340,6 +347,9 @@ router.post("/search", async (req, res) => {
     // Search through uploaded screenshots
     const searchResults = [];
     const queryLower = query.toLowerCase();
+    const queryWords = queryLower
+      .split(/\s+/)
+      .filter((word) => word.length > 0);
 
     entities.forEach((entity) => {
       if (!entity.processed || !entity.analysis) {
@@ -350,75 +360,191 @@ router.post("/search", async (req, res) => {
       const textMatches = [];
       const visualMatches = [];
       const entityMatches = [];
+      const tagMatches = [];
+      let matchDetails = {};
 
-      // Search in extracted text
-      if (entity.analysis.textContent) {
+      // Enhanced text content search
+      if (
+        entity.analysis.textContent &&
+        entity.analysis.textContent !== "No text found."
+      ) {
         const textContent = entity.analysis.textContent.toLowerCase();
+
+        // Exact phrase match
         if (textContent.includes(queryLower)) {
-          confidence += 0.4;
-          textMatches.push("Text content match");
+          confidence += 0.5;
+          textMatches.push(`Exact text match: "${query}"`);
+          matchDetails.textExact = true;
+        }
+
+        // Word-by-word matching
+        const matchedWords = queryWords.filter((word) =>
+          textContent.includes(word)
+        );
+        if (matchedWords.length > 0) {
+          confidence += 0.3 * (matchedWords.length / queryWords.length);
+          textMatches.push(`Text contains: ${matchedWords.join(", ")}`);
+          matchDetails.textWords = matchedWords;
         }
       }
 
-      // Search in visual description
+      // Enhanced visual description search
       if (entity.analysis.visualDescription) {
         const visualDesc = entity.analysis.visualDescription.toLowerCase();
+
+        // Exact phrase match in visual description
         if (visualDesc.includes(queryLower)) {
-          confidence += 0.3;
-          visualMatches.push("Visual description match");
+          confidence += 0.4;
+          visualMatches.push(`Visual description contains: "${query}"`);
+          matchDetails.visualExact = true;
+        }
+
+        // Word-by-word matching in visual description
+        const matchedVisualWords = queryWords.filter((word) =>
+          visualDesc.includes(word)
+        );
+        if (matchedVisualWords.length > 0) {
+          confidence += 0.25 * (matchedVisualWords.length / queryWords.length);
+          visualMatches.push(
+            `Visual elements: ${matchedVisualWords.join(", ")}`
+          );
+          matchDetails.visualWords = matchedVisualWords;
         }
       }
 
-      // Search in tags
-      if (entity.tags) {
+      // Enhanced tag search
+      if (entity.tags && entity.tags.length > 0) {
         entity.tags.forEach((tag) => {
-          if (tag.toLowerCase().includes(queryLower)) {
+          const tagLower = tag.toLowerCase();
+
+          // Exact tag match
+          if (tagLower === queryLower) {
+            confidence += 0.4;
+            tagMatches.push(`Exact tag match: "${tag}"`);
+            matchDetails.tagExact = true;
+          }
+          // Partial tag match
+          else if (
+            tagLower.includes(queryLower) ||
+            queryLower.includes(tagLower)
+          ) {
             confidence += 0.2;
-            entityMatches.push(tag);
+            tagMatches.push(`Tag contains: "${tag}"`);
+            matchDetails.tagPartial = true;
+          }
+          // Word matching in tags
+          else {
+            const matchedTagWords = queryWords.filter((word) =>
+              tagLower.includes(word)
+            );
+            if (matchedTagWords.length > 0) {
+              confidence += 0.1 * (matchedTagWords.length / queryWords.length);
+              tagMatches.push(
+                `Tag "${tag}" matches: ${matchedTagWords.join(", ")}`
+              );
+            }
           }
         });
       }
 
-      // Search in entity labels
+      // Enhanced entity search
       if (entity.analysis.entityAnalysis?.entities) {
         entity.analysis.entityAnalysis.entities.forEach((entity) => {
-          if (entity.label.toLowerCase().includes(queryLower)) {
+          const entityLabel = entity.label.toLowerCase();
+          const entityType = entity.type.toLowerCase();
+
+          // Exact entity label match
+          if (entityLabel === queryLower) {
+            confidence += 0.3;
+            entityMatches.push(
+              `Exact entity: "${entity.label}" (${entity.type})`
+            );
+            matchDetails.entityExact = true;
+          }
+          // Partial entity match
+          else if (
+            entityLabel.includes(queryLower) ||
+            queryLower.includes(entityLabel)
+          ) {
+            confidence += 0.15;
+            entityMatches.push(
+              `Entity contains: "${entity.label}" (${entity.type})`
+            );
+            matchDetails.entityPartial = true;
+          }
+          // Entity type match
+          else if (entityType === queryLower) {
             confidence += 0.1;
-            entityMatches.push(entity.label);
+            entityMatches.push(
+              `Entity type: "${entity.type}" - "${entity.label}"`
+            );
+            matchDetails.entityType = true;
           }
         });
       }
 
-      // Search in metadata
+      // Enhanced metadata search
       if (entity.metadata) {
-        if (
-          entity.metadata.visualElements.some((el) =>
-            el.toLowerCase().includes(queryLower)
-          )
-        ) {
-          confidence += 0.15;
-          visualMatches.push("UI component match");
+        // Search in dominant colors
+        if (entity.metadata.dominantColors) {
+          entity.metadata.dominantColors.forEach((color) => {
+            if (color.toLowerCase().includes(queryLower)) {
+              confidence += 0.1;
+              visualMatches.push(`Color match: "${color}"`);
+              matchDetails.colorMatch = true;
+            }
+          });
         }
-        if (
-          entity.metadata.dominantColors.some((color) =>
-            color.toLowerCase().includes(queryLower)
-          )
-        ) {
-          confidence += 0.1;
-          visualMatches.push("Color match");
+
+        // Search in primary objects
+        if (entity.metadata.primaryObjects) {
+          entity.metadata.primaryObjects.forEach((obj) => {
+            if (obj.toLowerCase().includes(queryLower)) {
+              confidence += 0.15;
+              visualMatches.push(`Primary object: "${obj}"`);
+              matchDetails.primaryObject = true;
+            }
+          });
         }
+
+        // Search in entity types
+        if (entity.metadata.entityTypes) {
+          entity.metadata.entityTypes.forEach((type) => {
+            if (type.toLowerCase().includes(queryLower)) {
+              confidence += 0.1;
+              entityMatches.push(`Entity type: "${type}"`);
+              matchDetails.entityTypeMatch = true;
+            }
+          });
+        }
+      }
+
+      // Apply filters if provided
+      if (filters.folder && entity.folder !== filters.folder) {
+        return; // Skip if folder filter doesn't match
+      }
+
+      if (filters.minConfidence && confidence < filters.minConfidence) {
+        return; // Skip if confidence is too low
       }
 
       // If we found matches, add to results
       if (confidence > 0) {
+        // Calculate relevance score based on recency and confidence
+        const daysSinceUpload =
+          (new Date() - new Date(entity.uploadedAt)) / (1000 * 60 * 60 * 24);
+        const recencyBonus = Math.max(0, 1 - daysSinceUpload / 30); // Bonus for recent uploads
+        const finalConfidence = Math.min(1.0, confidence + recencyBonus * 0.1);
+
         searchResults.push({
           id: entity.id,
           filename: entity.filename,
           originalName: entity.originalName,
-          confidence: Math.min(confidence, 1.0), // Cap at 1.0
-          textMatches: textMatches,
-          visualMatches: visualMatches,
-          entityMatches: entityMatches,
+          confidence: finalConfidence,
+          textMatches: [...new Set(textMatches)], // Remove duplicates
+          visualMatches: [...new Set(visualMatches)],
+          entityMatches: [...new Set(entityMatches)],
+          tagMatches: [...new Set(tagMatches)],
           thumbnail: `/api/visual-memory/thumbnail/${entity.id}`,
           timestamp: entity.uploadedAt,
           textContent: entity.analysis.textContent,
@@ -426,6 +552,13 @@ router.post("/search", async (req, res) => {
           entityCount: entity.metadata?.totalEntities || 0,
           tags: entity.tags || [],
           folder: entity.folder,
+          matchDetails: matchDetails,
+          // Add additional metadata for better display
+          dominantColors: entity.metadata?.dominantColors || [],
+          primaryObjects: entity.metadata?.primaryObjects || [],
+          entityTypes: entity.metadata?.entityTypes || [],
+          fileSize: entity.size,
+          uploadedDate: entity.uploadedAt,
         });
       }
     });
@@ -433,14 +566,29 @@ router.post("/search", async (req, res) => {
     // Sort by confidence (highest first)
     searchResults.sort((a, b) => b.confidence - a.confidence);
 
+    // Apply limit if specified
+    const limit = filters.limit || searchResults.length;
+    const limitedResults = searchResults.slice(0, limit);
+
     res.json({
       query: query,
-      results: searchResults,
+      results: limitedResults,
       totalResults: searchResults.length,
+      filters: filters,
+      searchStats: {
+        totalEntities: entities.length,
+        processedEntities: entities.filter((e) => e.processed).length,
+        queryWords: queryWords,
+        averageConfidence:
+          searchResults.length > 0
+            ? searchResults.reduce((sum, r) => sum + r.confidence, 0) /
+              searchResults.length
+            : 0,
+      },
     });
   } catch (error) {
     console.error("Search error:", error);
-    res.status(500).json({ error: "Search failed" });
+    res.status(500).json({ error: "Search failed", details: error.message });
   }
 });
 
@@ -528,22 +676,78 @@ router.delete("/screenshot/:id", async (req, res) => {
   }
 });
 
+// GET /api/visual-memory/thumbnail/:id
+// Serve thumbnail/image for a specific screenshot
+router.get("/thumbnail/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const data = loadVisualEntities();
+    const screenshot = data.entities.find((s) => s.id === id);
+
+    if (!screenshot) {
+      return res.status(404).json({ error: "Screenshot not found" });
+    }
+
+    // Check if file exists
+    if (!fs.existsSync(screenshot.path)) {
+      return res.status(404).json({ error: "Image file not found" });
+    }
+
+    // Get file stats
+    const stats = fs.statSync(screenshot.path);
+    const fileSize = stats.size;
+    const ext = path.extname(screenshot.path).toLowerCase();
+
+    // Set appropriate content type
+    let contentType = "image/jpeg"; // default
+    switch (ext) {
+      case ".png":
+        contentType = "image/png";
+        break;
+      case ".gif":
+        contentType = "image/gif";
+        break;
+      case ".bmp":
+        contentType = "image/bmp";
+        break;
+      case ".webp":
+        contentType = "image/webp";
+        break;
+    }
+
+    // Set headers
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Length", fileSize);
+    res.setHeader("Cache-Control", "public, max-age=31536000"); // Cache for 1 year
+
+    // Stream the file
+    const fileStream = fs.createReadStream(screenshot.path);
+    fileStream.pipe(res);
+  } catch (error) {
+    console.error("Error serving thumbnail:", error);
+    res.status(500).json({ error: "Failed to serve thumbnail" });
+  }
+});
+
 // GET /api/visual-memory/storage-info
 // Get information about the JSON storage
 router.get("/storage-info", async (req, res) => {
   try {
     const data = loadVisualEntities();
     const stats = fs.statSync(STORAGE_FILE);
-    
+
     res.json({
       storageFile: STORAGE_FILE,
       fileSize: stats.size,
       totalEntities: data.entities.length,
       lastUpdated: data.lastUpdated,
-      processedEntities: data.entities.filter(e => e.processed).length,
-      unprocessedEntities: data.entities.filter(e => !e.processed).length,
-      folders: [...new Set(data.entities.map(e => e.folder).filter(Boolean))],
-      entityTypes: [...new Set(data.entities.flatMap(e => e.metadata?.entityTypes || []))]
+      processedEntities: data.entities.filter((e) => e.processed).length,
+      unprocessedEntities: data.entities.filter((e) => !e.processed).length,
+      folders: [...new Set(data.entities.map((e) => e.folder).filter(Boolean))],
+      entityTypes: [
+        ...new Set(data.entities.flatMap((e) => e.metadata?.entityTypes || [])),
+      ],
     });
   } catch (error) {
     console.error("Error fetching storage info:", error);
@@ -555,8 +759,11 @@ router.get("/storage-info", async (req, res) => {
 // Clear all stored entities (for testing/reset)
 router.post("/clear-storage", async (req, res) => {
   try {
-    const success = saveVisualEntities({ entities: [], lastUpdated: new Date().toISOString() });
-    
+    const success = saveVisualEntities({
+      entities: [],
+      lastUpdated: new Date().toISOString(),
+    });
+
     if (success) {
       res.json({ message: "Storage cleared successfully" });
     } else {
