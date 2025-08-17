@@ -26,4 +26,7 @@ yarn-error.log*
 **/.env
 
 # Sentiment analysis data files
-backend/data/sentiment/*.jsonbackend/node_modules/
+backend/data/sentiment/*.json
+
+# Gmail OAuth tokens (sensitive data)
+backend/data/gmail_token.json
