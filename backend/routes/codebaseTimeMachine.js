@@ -6,6 +6,20 @@ const simpleGit = require("simple-git");
 const OpenAI = require("openai");
 const { analyzeCodeChanges } = require("../utils/openai");
 
+// ⚠️ APP RUNNER DEPLOYMENT WARNING ⚠️
+// This code uses in-memory storage which will NOT work properly in App Runner:
+// - Containers can restart anytime, losing all data
+// - Multiple instances won't share data
+// - No persistence across deployments
+//
+// PRODUCTION SOLUTIONS NEEDED:
+// 1. Replace Map() storage with database (DynamoDB, RDS, etc.)
+// 2. Use S3 for temporary file storage instead of local filesystem
+// 3. Implement proper job queue (SQS + Lambda, or Step Functions)
+// 4. Add proper error handling for container restarts
+//
+// For now, this is suitable for development/testing only.
+
 // Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -16,6 +30,13 @@ const router = express.Router();
 // Storage for analyses (in production, use a database)
 const analyses = new Map();
 const analysisResults = new Map();
+
+// Track container startup for App Runner
+const containerStartTime = new Date();
+console.log(`🚀 Container started at: ${containerStartTime.toISOString()}`);
+console.log(
+  `⚠️  WARNING: Using in-memory storage - data will be lost on container restart`
+);
 
 // POST /api/codebase-time-machine/analyze-repo
 // Clone and analyze a repository
@@ -41,6 +62,23 @@ router.post("/analyze-repo", async (req, res) => {
       return res.status(400).json({
         error:
           "Please provide a valid GitHub, GitLab, or Bitbucket repository URL",
+      });
+    }
+
+    // Quick repository accessibility check before starting analysis
+    try {
+      console.log(`🔍 Pre-checking repository: ${repoUrl}`);
+      const git = simpleGit();
+      await git.listRemote([repoUrl]);
+      console.log(`✅ Repository pre-check passed`);
+    } catch (preCheckError) {
+      console.error(`❌ Repository pre-check failed: ${preCheckError.message}`);
+      return res.status(400).json({
+        error: `Repository not accessible: ${preCheckError.message}. Please ensure the repository is public and the URL is correct.`,
+        details: {
+          repoUrl,
+          error: preCheckError.message,
+        },
       });
     }
 
@@ -117,6 +155,21 @@ async function performRepositoryAnalysis(
   const tempDir = path.join(__dirname, "../temp", analysisId);
 
   try {
+    // Check if we can write to the filesystem (App Runner limitation)
+    const testDir = path.join(__dirname, "../temp");
+    try {
+      if (!fs.existsSync(testDir)) {
+        fs.mkdirSync(testDir, { recursive: true });
+        console.log(`✅ Filesystem write access confirmed`);
+      }
+    } catch (fsError) {
+      console.error(`❌ Filesystem write access failed: ${fsError.message}`);
+      analysis.status = "failed";
+      analysis.error =
+        "App Runner filesystem limitation: Cannot create temporary directories. Consider using S3 for file storage.";
+      return;
+    }
+
     // Create temp directory
     if (!fs.existsSync(path.dirname(tempDir))) {
       fs.mkdirSync(path.dirname(tempDir), { recursive: true });
@@ -1365,6 +1418,71 @@ function determineCommitImpact(commit) {
   return "low";
 }
 
+// GET /api/codebase-time-machine/health
+// Health check endpoint for App Runner
+router.get("/health", async (req, res) => {
+  try {
+    // Check if git is available
+    const git = simpleGit();
+    const version = await git.version();
+
+    // Test network connectivity
+    const https = require("https");
+    const networkTests = {};
+
+    // Test GitHub connectivity
+    try {
+      await new Promise((resolve, reject) => {
+        const req = https.get("https://api.github.com", (res) => {
+          networkTests.github = { status: res.statusCode, accessible: true };
+          resolve();
+        });
+        req.on("error", (err) => {
+          networkTests.github = { error: err.message, accessible: false };
+          resolve();
+        });
+        req.setTimeout(5000, () => {
+          networkTests.github = { error: "Timeout", accessible: false };
+          resolve();
+        });
+      });
+    } catch (error) {
+      networkTests.github = { error: error.message, accessible: false };
+    }
+
+    // Test DNS resolution
+    try {
+      const dns = require("dns").promises;
+      await dns.lookup("github.com");
+      networkTests.dns = { accessible: true };
+    } catch (error) {
+      networkTests.dns = { error: error.message, accessible: false };
+    }
+
+    res.json({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      git: version,
+      memoryUsage: process.memoryUsage(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || "development",
+      network: networkTests,
+      containerInfo: {
+        startTime: containerStartTime.toISOString(),
+        nodeVersion: process.version,
+        platform: process.platform,
+        arch: process.arch,
+      },
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: "unhealthy",
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 // GET /api/codebase-time-machine/debug-storage
 // Debug endpoint to see what's stored in memory
 router.get("/debug-storage", async (req, res) => {
@@ -1407,19 +1525,85 @@ router.get("/test-repo-access", async (req, res) => {
       return res.status(400).json({ error: "Repository URL is required" });
     }
 
-    const git = simpleGit();
-    const repoInfo = await git.listRemote([repoUrl]);
-    const refs = repoInfo.split("\n").filter((line) => line.trim());
+    console.log(`🔍 Testing repository access: ${repoUrl}`);
 
-    res.json({
-      accessible: true,
-      refs: refs.slice(0, 10), // Show first 10 refs
-      totalRefs: refs.length,
-    });
+    const git = simpleGit();
+
+    // Test 1: Check if git is available
+    try {
+      const version = await git.version();
+      console.log(`✅ Git version: ${version}`);
+    } catch (gitError) {
+      console.error(`❌ Git not available: ${gitError.message}`);
+      return res.json({
+        accessible: false,
+        error: `Git not available: ${gitError.message}`,
+        tests: { git: false },
+      });
+    }
+
+    // Test 2: Try to list remote refs
+    try {
+      const repoInfo = await git.listRemote([repoUrl]);
+      const refs = repoInfo.split("\n").filter((line) => line.trim());
+      console.log(`✅ Repository accessible. Found ${refs.length} refs`);
+
+      // Extract branch names from refs
+      const branches = refs
+        .filter((ref) => ref.includes("refs/heads/"))
+        .map((ref) => ref.replace("refs/heads/", ""))
+        .slice(0, 5);
+
+      res.json({
+        accessible: true,
+        refs: refs.slice(0, 10), // Show first 10 refs
+        totalRefs: refs.length,
+        branches: branches,
+        tests: { git: true, remote: true },
+      });
+    } catch (remoteError) {
+      console.error(`❌ Remote access failed: ${remoteError.message}`);
+
+      // Test 3: Try with different URL formats
+      const alternativeUrls = [
+        repoUrl.replace("https://", "git://"),
+        repoUrl.replace("https://github.com/", "git@github.com:") + ".git",
+      ];
+
+      for (const altUrl of alternativeUrls) {
+        try {
+          console.log(`🔄 Trying alternative URL: ${altUrl}`);
+          const altRepoInfo = await git.listRemote([altUrl]);
+          console.log(`✅ Alternative URL works: ${altUrl}`);
+          return res.json({
+            accessible: true,
+            originalUrl: repoUrl,
+            workingUrl: altUrl,
+            refs: altRepoInfo
+              .split("\n")
+              .filter((line) => line.trim())
+              .slice(0, 10),
+            tests: { git: true, remote: false, alternative: true },
+          });
+        } catch (altError) {
+          console.log(
+            `❌ Alternative URL failed: ${altUrl} - ${altError.message}`
+          );
+        }
+      }
+
+      res.json({
+        accessible: false,
+        error: remoteError.message,
+        tests: { git: true, remote: false, alternative: false },
+      });
+    }
   } catch (error) {
+    console.error(`❌ Test failed: ${error.message}`);
     res.json({
       accessible: false,
       error: error.message,
+      tests: { git: false, remote: false },
     });
   }
 });
