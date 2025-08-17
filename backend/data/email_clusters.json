@@ -1,4 +1,269 @@
 {
-  "clusters": [],
-  "lastUpdated": "2025-08-17T00:11:44.266Z"
+  "clusters": [
+    {
+      "id": "50288937-412b-41bd-9edf-8a5b972dccd9",
+      "name": "Security Alerts and Updates",
+      "description": "Emails related to security alerts and updates from Google services.",
+      "action": "Review and ensure account security",
+      "emailIds": [
+        "19767546f1f74e01",
+        "1972516298b8597a",
+        "195f9a1167754b41",
+        "195f99fd27436843",
+        "195e3b58fe21ba7b"
+      ],
+      "count": 5,
+      "priority": "high",
+      "createdAt": "2025-08-17T00:50:13.793Z",
+      "emails": [
+        {
+          "id": "19767546f1f74e01",
+          "subject": "[Product Update] New security enhancement for your Google Cloud environment",
+          "sender": "Google Cloud <CloudPlatform-noreply@google.com>",
+          "date": "2025-06-13T03:27:55.000Z",
+          "body": "Re-authentication will be required for sensitive actions starting July 2025.\r\n\r\n\r\n\r\n\r\nMY CONSOLE\r\n\r\n\r\n\r\n\r\nHello Chenyu,\r\n\r\nWe're reaching out with an important update regarding enhancing the  \r\nsecurity of sensitive actions in your Google Cloud environment. This update  \r\nstrengthens protection against unauthorized access to your critical Google  \r\nCloud resources.\r\n\r\nWe have provided additional information below to guide you through this  \r\nchange.\r\n\r\nWhat you need to know\r\n\r\nKey changes\r\n\r\nSta...",
+          "category": "security",
+          "priority": "medium",
+          "threadId": "19767546f1f74e01",
+          "snippet": "Re-authentication will be required for sensitive actions starting July 2025. MY CONSOLE Hello Chenyu, We&#39;re reaching out with an important update regarding enhancing the security of sensitive"
+        },
+        {
+          "id": "1972516298b8597a",
+          "subject": "[Action Advised] Protect your applications and enhance your security",
+          "sender": "Google Developers <GoogleDevelopers-noreply@google.com>",
+          "date": "2025-05-31T06:44:58.000Z",
+          "body": "Google Developers logo\r\n\r\n\r\n\r\nOAuth clients inactive for 6 months will be automatically deleted starting  \r\nJune 2025.\r\n\r\n\r\n\r\nHello Google Auth Platform Developer,\r\n\r\nWe're writing to inform you about an upcoming change that may affect your  \r\napplications and scripts using Google Auth Platform for Sign-in with Google  \r\nor for calling Google APIs.\r\n\r\nWe've provided additional information below to guide you through this  \r\nchange.\r\n\r\nWhat you need to know\r\n\r\nAs we recently announced, starting Ju...",
+          "category": "security",
+          "priority": "medium",
+          "threadId": "1972516298b8597a",
+          "snippet": "OAuth clients inactive for 6 months will be automatically deleted starting June 2025. Hello Google Auth Platform Developer, We&#39;re writing to inform you about an upcoming change that may affect your"
+        },
+        {
+          "id": "195f9a1167754b41",
+          "subject": "Security alert",
+          "sender": "Google <no-reply@accounts.google.com>",
+          "date": "2025-04-03T03:10:38.000Z",
+          "body": "[image: Google]\r\nZapier was granted access to your Google Account\r\n\r\n\r\nchenyu.development@gmail.com\r\n\r\nIf you did not grant access, you should check this activity and secure your\r\naccount.\r\nCheck activity\r\n<https://accounts.google.com/AccountChooser?Email=chenyu.development@gmail.com&continue=https://myaccount.google.com/alert/nt/1743649838000?rfn%3D127%26rfnc%3D1%26eid%3D-2299454913565346187%26et%3D0>\r\nYou can also see security activity at\r\nhttps://myaccount.google.com/notifications\r\nYou receiv...",
+          "category": "security",
+          "priority": "medium",
+          "threadId": "195f99fd27436843",
+          "snippet": "Zapier was granted access to your Google Account chenyu.development@gmail.com If you did not grant access, you should check this activity and secure your account. Check activity You can also see"
+        },
+        {
+          "id": "195f99fd27436843",
+          "subject": "Security alert",
+          "sender": "Google <no-reply@accounts.google.com>",
+          "date": "2025-04-03T03:09:14.000Z",
+          "body": "[image: Google]\r\nZapier was granted access to your Google Account\r\n\r\n\r\nchenyu.development@gmail.com\r\n\r\nIf you did not grant access, you should check this activity and secure your\r\naccount.\r\nCheck activity\r\n<https://accounts.google.com/AccountChooser?Email=chenyu.development@gmail.com&continue=https://myaccount.google.com/alert/nt/1743649754000?rfn%3D127%26rfnc%3D1%26eid%3D8005924788314224580%26et%3D0>\r\nYou can also see security activity at\r\nhttps://myaccount.google.com/notifications\r\nYou receive...",
+          "category": "security",
+          "priority": "medium",
+          "threadId": "195f99fd27436843",
+          "snippet": "Zapier was granted access to your Google Account chenyu.development@gmail.com If you did not grant access, you should check this activity and secure your account. Check activity You can also see"
+        },
+        {
+          "id": "195e3b58fe21ba7b",
+          "subject": "Security alert",
+          "sender": "Google <no-reply@accounts.google.com>",
+          "date": "2025-03-29T21:01:20.000Z",
+          "body": "[image: Google]\r\nMicrosoft apps & services was granted access to your Google Account\r\n\r\n\r\nchenyu.development@gmail.com\r\n\r\nIf you did not grant access, you should check this activity and secure your\r\naccount.\r\nCheck activity\r\n<https://accounts.google.com/AccountChooser?Email=chenyu.development@gmail.com&continue=https://myaccount.google.com/alert/nt/1743282080000?rfn%3D127%26rfnc%3D1%26eid%3D3305555026812608961%26et%3D0>\r\nYou can also see security activity at\r\nhttps://myaccount.google.com/notific...",
+          "category": "security",
+          "priority": "medium",
+          "threadId": "195e3b58fe21ba7b",
+          "snippet": "Microsoft apps &amp; services was granted access to your Google Account chenyu.development@gmail.com If you did not grant access, you should check this activity and secure your account. Check activity"
+        }
+      ]
+    },
+    {
+      "id": "4bb6cbfe-c547-4fbe-80b9-c66b275d9a28",
+      "name": "Procurement and Negotiation",
+      "description": "Emails related to procurement negotiations and deals with Microsoft.",
+      "action": "Schedule follow-up meetings and finalize deals",
+      "emailIds": [
+        "1961344150ce587f",
+        "196133dbac69fd18",
+        "1961338d59eaaea3",
+        "196132b4db64dfde",
+        "195f9db311365054",
+        "195f9d0b930c11bb"
+      ],
+      "count": 6,
+      "priority": "medium",
+      "createdAt": "2025-08-17T00:50:13.793Z",
+      "emails": [
+        {
+          "id": "1961344150ce587f",
+          "subject": "Re: Negotiation on Purchasing Deal for Surface Laptops and Microsoft Copilot Licenses",
+          "sender": "Chenyu <chenyu.development2@gmail.com>",
+          "date": "2025-04-08T02:38:58.000Z",
+          "body": "Hello Chenyu,\r\n\r\nMy name is David and I am the head of the sales team from Microsoft.\r\n\r\nWe appreciate your business and would like to provide the best terms we\r\npossibly can for this deal. Please see below:\r\n\r\n\r\n   -\r\n\r\n   1. Microsoft Copilot License, Quantity: 1,000 seats: $360 per seat per\r\n   year. If you can commit for three years, I can provide a 20% discount\r\n   -\r\n\r\n   2. Surface Laptop Quantity: 10,000 units. The cost per surface\r\nlaptop, Microsoft\r\n   - Surface Pro - Copilot+ PC - 13”...",
+          "category": "personal",
+          "priority": "medium",
+          "threadId": "196134390efbb3c6",
+          "snippet": "Hello Chenyu, My name is David and I am the head of the sales team from Microsoft. We appreciate your business and would like to provide the best terms we possibly can for this deal. Please see below:"
+        },
+        {
+          "id": "196133dbac69fd18",
+          "subject": "Re: Bulk Purchase Inquiry: Surface Laptops and Microsoft Copilot Licenses - Google Procurement",
+          "sender": "Chenyu <chenyu.development2@gmail.com>",
+          "date": "2025-04-08T02:32:04.000Z",
+          "body": "test\r\n\r\nOn Mon, Apr 7, 2025 at 10:26 PM Chenyu <chenyu.development2@gmail.com>\r\nwrote:\r\n\r\n> Hello Chenyu,\r\n>\r\n> My name is David and I am the head of the sales team from Microsoft.\r\n>\r\n> We appreciate your business and would like to provide the best terms we\r\n> possibly can for this deal. Please see below:\r\n>\r\n>\r\n>    -\r\n>\r\n>    1. Microsoft Copilot License, Quantity: 1,000 seats: $360 per seat per\r\n>    year. If you can commit for three years, I can provide a 20% discount\r\n>    -\r\n>\r\n>    2. Su...",
+          "category": "personal",
+          "priority": "medium",
+          "threadId": "1961337eca6fcdb3",
+          "snippet": "test On Mon, Apr 7, 2025 at 10:26 PM Chenyu &lt;chenyu.development2@gmail.com&gt; wrote: Hello Chenyu, My name is David and I am the head of the sales team from Microsoft. We appreciate your business"
+        },
+        {
+          "id": "1961338d59eaaea3",
+          "subject": "Re: Bulk Purchase Inquiry: Surface Laptops and Microsoft Copilot Licenses - Google Procurement",
+          "sender": "Chenyu <chenyu.development2@gmail.com>",
+          "date": "2025-04-08T02:26:42.000Z",
+          "body": "Hello Chenyu,\r\n\r\nMy name is David and I am the head of the sales team from Microsoft.\r\n\r\nWe appreciate your business and would like to provide the best terms we\r\npossibly can for this deal. Please see below:\r\n\r\n\r\n   -\r\n\r\n   1. Microsoft Copilot License, Quantity: 1,000 seats: $360 per seat per\r\n   year. If you can commit for three years, I can provide a 20% discount\r\n   -\r\n\r\n   2. Surface Laptop Quantity: 10,000 units. The cost per surface\r\nlaptop, Microsoft\r\n   - Surface Pro - Copilot+ PC - 13”...",
+          "category": "personal",
+          "priority": "medium",
+          "threadId": "1961337eca6fcdb3",
+          "snippet": "Hello Chenyu, My name is David and I am the head of the sales team from Microsoft. We appreciate your business and would like to provide the best terms we possibly can for this deal. Please see below:"
+        },
+        {
+          "id": "196132b4db64dfde",
+          "subject": "Re: Bulk Purchase Inquiry: Surface Laptops and Microsoft Copilot Licenses - Google Procurement",
+          "sender": "Chenyu <chenyu.development2@gmail.com>",
+          "date": "2025-04-08T02:11:55.000Z",
+          "body": "Hello Chenyu,\r\n\r\nMy name is David and I am the head of the sales team from Microsoft.\r\n\r\nWe appreciate your business and would like to provide the best terms we\r\npossibly can for this deal. Please see below:\r\n\r\n\r\n   -\r\n\r\n   1. Microsoft Copilot License, Quantity: 1,000 seats: $360 per seat per\r\n   year. If you can commit for three years, I can provide a 20% discount\r\n   -\r\n\r\n   2. Surface Laptop Quantity: 10,000 units. The cost per surface\r\nlaptop, Microsoft\r\n   - Surface Pro - Copilot+ PC - 13”...",
+          "category": "personal",
+          "priority": "medium",
+          "threadId": "196132ad7a586078",
+          "snippet": "Hello Chenyu, My name is David and I am the head of the sales team from Microsoft. We appreciate your business and would like to provide the best terms we possibly can for this deal. Please see below:"
+        },
+        {
+          "id": "195f9db311365054",
+          "subject": "Re: Procurement Negotiation on Behalf of Google",
+          "sender": "Chenyu <chenyu.development2@gmail.com>",
+          "date": "2025-04-03T04:13:54.000Z",
+          "body": "Tuesday works for me.\r\n\r\nOn Thu, Apr 3, 2025 at 12:13 AM <chenyu.development@gmail.com> wrote:\r\n\r\n> Hello David and Gloria,\r\n>\r\n> Thank you for your prompt response. I appreciate your willingness to\r\n> discuss our procurement needs.\r\n>\r\n> I would be available for a meeting on the following dates and times\r\n> (Eastern Time):\r\n> - Monday, April 7, 2025: 10:00 AM - 12:00 PM\r\n> - Tuesday, April 8, 2025: 2:00 PM - 4:00 PM\r\n> - Wednesday, April 9, 2025: 11:00 AM - 1:00 PM\r\n>\r\n> Please let me know whic...",
+          "category": "personal",
+          "priority": "medium",
+          "threadId": "195f9ca4e2ba3c5c",
+          "snippet": "Tuesday works for me. On Thu, Apr 3, 2025 at 12:13 AM &lt;chenyu.development@gmail.com&gt; wrote: Hello David and Gloria, Thank you for your prompt response. I appreciate your willingness to discuss"
+        },
+        {
+          "id": "195f9d0b930c11bb",
+          "subject": "Re: Procurement Negotiation on Behalf of Google",
+          "sender": "Chenyu <chenyu.development2@gmail.com>",
+          "date": "2025-04-03T04:02:27.000Z",
+          "body": "Hello Chenyu,\r\n\r\nMy name is David and I am the head of the sales team from Microsoft. I've\r\nCC'd my colleague Gloria in this email as well.\r\n\r\nI'd love to set up a time with you to discuss this further. What date and\r\ntime works best for you?\r\n\r\nBest,\r\n\r\nDavid\r\nHead of Sales at Microsoft\r\n\r\nOn Wed, Apr 2, 2025 at 11:55 PM <chenyu.development@gmail.com> wrote:\r\n\r\n> Dear Microsoft Team,\r\n>\r\n> I hope this message finds you well. My name is Chenyu Zhang, and I am\r\n> representing Google in a procurem...",
+          "category": "personal",
+          "priority": "medium",
+          "threadId": "195f9ca4e2ba3c5c",
+          "snippet": "Hello Chenyu, My name is David and I am the head of the sales team from Microsoft. I&#39;ve CC&#39;d my colleague Gloria in this email as well. I&#39;d love to set up a time with you to discuss this"
+        }
+      ]
+    },
+    {
+      "id": "4284174b-5b21-417e-9658-8c24c3c425d0",
+      "name": "Google Cloud Updates and Opportunities",
+      "description": "Emails about Google Cloud services, updates, and learning opportunities.",
+      "action": "Explore and utilize new features",
+      "emailIds": [
+        "1960a445d98544a0",
+        "196051e02c890bd3",
+        "195fff7a5b08cc1e",
+        "195f998891689498",
+        "195f9979fd9d6ff7"
+      ],
+      "count": 5,
+      "priority": "medium",
+      "createdAt": "2025-08-17T00:50:13.793Z",
+      "emails": [
+        {
+          "id": "1960a445d98544a0",
+          "subject": "Upskill and succeed with Google Cloud",
+          "sender": "Google Cloud <googlecloud@google.com>",
+          "date": "2025-04-06T08:42:54.000Z",
+          "body": "Google Cloud­  \r\n<https://notifications.google.com/g/p/ANiao5raWyjewiDcJQRkoCxhjBfxaH5UecU-Rv4MD6rGwhg1NPqbRgPy3FCE9CU6bmN8R-SC7-HYy1oyP3uNQtIFlpDYzuuFuTGW81_YL7q80rQ5r09LlLgY2-1zfCVQoMUEMtY>\r\n\r\nBoost your skills with new learning opportunities\r\n\r\nNew Google Cloud learning opportunities just for you\r\n\r\nGo to console  \r\n<https://notifications.google.com/g/p/ANiao5qQs07Of4ubtgRX6Ia4H19wZ0ZD7k7h0v9OSL1A616ZSE11T2l578WJF-od5pZP-WN8uOcwqFjPJkWTHy1Ryt75AQtT9hyUBzHKdt3z8azN1J3dSyUP1BkpAvuUNawekTWFljYtn...",
+          "category": "work",
+          "priority": "medium",
+          "threadId": "1960a445d98544a0",
+          "snippet": "Learn, certify, and grow ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏"
+        },
+        {
+          "id": "196051e02c890bd3",
+          "subject": "Explore the power of AI with Vertex AI",
+          "sender": "Google Cloud <googlecloud@google.com>",
+          "date": "2025-04-05T08:42:54.000Z",
+          "body": "Google Cloud­  \r\n<https://notifications.google.com/g/p/ANiao5rPZn_YedttjRZl2ha9xQR8rJAUITVhJ2YI8miB1XHsBqxFIFjCEhTDMERPkwczf8WiXgdYUUy6OjdKTuWjBxhoqVS60IC5h_Z5CYyTwoLBYTfWUEr5sGZ4oalp5kZlQYDtDPhHzqs>\r\n\r\nBuild transformative AI experiences.\r\n\r\nDive into Vertex AI – start experimenting with a single prompt.\r\n\r\nTry Vertex AI in my console  \r\n<https://notifications.google.com/g/p/ANiao5o9fk2gH0SoaawX1Q0MuoU0FZFK6JTVwAwf1fuT-l0YD2WUCs08EFs1qDlz94V4UVIGj37UQ3JcNILOPHArOzgq_-WUw41BVjN2zpzofOdJiJlX2TOtq...",
+          "category": "work",
+          "priority": "medium",
+          "threadId": "196051e02c890bd3",
+          "snippet": "Enterprise-ready generative AI. ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏"
+        },
+        {
+          "id": "195fff7a5b08cc1e",
+          "subject": "Launch and learn with interactive, prebuilt solutions",
+          "sender": "Google Cloud <googlecloud@google.com>",
+          "date": "2025-04-04T08:42:54.000Z",
+          "body": "Google  \r\nCloud­<https://notifications.google.com/g/p/ANiao5qZxyWL_-U16X8a79p5KN67SQ0pUz-YsfoxLqeUO1ZKz9Uq47NY0TL4J-s4aa1z1laqUyeobqEcWBpwuuQtpxtYxYYSC_MBBKfoBUmRmQcPOTszXaoxAGL7WRrKjOUu8T8>\r\n\r\nDeploy prebuilt Google Cloud solutions in one click\r\n\r\nGet up and running in minutes with click-to-deploy solutions for AI,  \r\ninfrastructure, and other use cases.\r\n\r\nDeploy  \r\nnow<https://notifications.google.com/g/p/ANiao5qVFhAqwP1lCE-h28j5WD7eV6PalgDhqcnNRnLnCku3RS0JteZ9ygTf380Z8s4tNY4lod753Fh9tJhBMpMT...",
+          "category": "work",
+          "priority": "medium",
+          "threadId": "195fff7a5b08cc1e",
+          "snippet": "Explore the full solutions catalog. ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏"
+        },
+        {
+          "id": "195f998891689498",
+          "subject": "You have activated your full account",
+          "sender": "Google Cloud <googlecloud@google.com>",
+          "date": "2025-04-03T03:01:18.000Z",
+          "body": "Google Cloud  \r\n<https://notifications.google.com/g/p/ANiao5r217H8RAbb3AbflS4j5QvSJHbeQU_HQMs6bYokTPQfLh98e2AW7M31bjl8spor4gMs7NVAsFANODfajvEhzyhIGLLuZrTv5CjapuYlDrPB9ghvZR2rCzj_ayX8QaTgrdrF3g5jnXYttf_bnrKlCzSNeXh_9MGq-9FV3GkHD8RKDQxG3lDkur4d9je8F82_phAuSIA9Hn5rRgk18o_xa2pH7if-0rFDFEAllMk_l1g_kVzcjsyAFbbNb1_pymCWb4KmGxz1fKrCWe_->\r\n\r\nThanks for activating your full account.\r\n\r\nYou now have full access to Google Cloud products, including monthly usage  \r\nof services in the Free Tier program  \r\n<ht...",
+          "category": "work",
+          "priority": "medium",
+          "threadId": "195f998891689498",
+          "snippet": "The restrictions on your account are removed. ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿ ﻿"
+        },
+        {
+          "id": "195f9979fd9d6ff7",
+          "subject": "Account confirmation: Your Google Cloud free trial",
+          "sender": "Google Cloud <CloudPlatform-noreply@google.com>",
+          "date": "2025-04-03T03:00:18.000Z",
+          "body": "Google Cloud  \r\n<https://notifications.google.com/g/p/ANiao5qMAVNGS5j-p3Y-3k9HC12jOZIDYkBiz7vg6T7Q_BWHclyCQR3uh9w4KPV7aCD3bXTZYKgD9GJn3d2Ur6S9gOfzyDiKJQVge-RMcP61zUmm9ytYWIfgSX9uYDoz8hLdTC0tV7VcuGJ5QRhIykXiFp9GmYI4mgJRvymcD7aYyV8FmVIQv3mJjJ67mVLy4gZ-XLL5ctui2-NV4j-oS822LuYe0HG613XhMQKzh-3xc501I9qqwmFzHGzO9ZG0qbl8Z1q6WQ>\r\n\r\nGo to my console  \r\n<https://notifications.google.com/g/p/ANiao5r9C6Nzoz2x_UCE-ZoYr_is9R2eMuZpTaY3hScI4Wly7WKWv5Qnw9w-qOe_5ya4geQr8g29FBxrgA4mA0F2guKgRj4eVltMgNzAcFpob_WLPPmVP...",
+          "category": "work",
+          "priority": "medium",
+          "threadId": "195f9979fd9d6ff7",
+          "snippet": "Get started fast – and see what&#39;s always free on Google Cloud. Google Cloud Go to my console Welcome to Google Cloud. Learn the fundamentals with this tutorial – and see what else you can do for"
+        }
+      ]
+    },
+    {
+      "id": "c323b984-a634-4312-91b8-a1a7c94abd3f",
+      "name": "Casual Work Correspondence",
+      "description": "Informal work-related emails and greetings.",
+      "action": "Respond if necessary",
+      "emailIds": [
+        "195fe32c711c89a2"
+      ],
+      "count": 1,
+      "priority": "low",
+      "createdAt": "2025-08-17T00:50:13.793Z",
+      "emails": [
+        {
+          "id": "195fe32c711c89a2",
+          "subject": "Re: Hello!",
+          "sender": "Alan Morelos <amorelos@college.harvard.edu>",
+          "date": "2025-04-04T00:27:38.000Z",
+          "body": "hello\r\n\r\nOn Thu, Apr 3, 2025 at 8:27 PM <chenyu.development@gmail.com> wrote:\r\n\r\n> Hi there!\r\n>\r\n> I just wanted to drop by and say hi. Hope you're having a great day!\r\n>\r\n> Here's a random joke for you:\r\n> Why don't scientists trust atoms?\r\n> Because they make up everything!\r\n>\r\n> Take care!\r\n>\r\n",
+          "category": "work",
+          "priority": "medium",
+          "threadId": "195fe31d65f6e5c3",
+          "snippet": "hello On Thu, Apr 3, 2025 at 8:27 PM &lt;chenyu.development@gmail.com&gt; wrote: Hi there! I just wanted to drop by and say hi. Hope you&#39;re having a great day! Here&#39;s a random joke for you: Why"
+        }
+      ],
+      "archived": true,
+      "archivedAt": "2025-08-17T00:51:37.370Z",
+      "archivedEmails": [
+        {
+          "id": "195fe32c711c89a2",
+          "status": "archived"
+        }
+      ]
+    }
+  ],
+  "lastUpdated": "2025-08-17T00:51:37.370Z"
 }

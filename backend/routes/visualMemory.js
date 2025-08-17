@@ -221,7 +221,7 @@ router.post(
             id: uuidv4(),
             filename: file.filename,
             originalName: file.originalname,
-            path: file.path,
+            path: path.relative(process.cwd(), file.path), // Store relative path
             size: file.size,
             uploadedAt: new Date(),
             processed: true,
@@ -277,7 +277,7 @@ router.post(
             id: uuidv4(),
             filename: file.filename,
             originalName: file.originalname,
-            path: file.path,
+            path: path.relative(process.cwd(), file.path), // Store relative path
             size: file.size,
             uploadedAt: new Date(),
             processed: false,
@@ -689,13 +689,18 @@ router.get("/thumbnail/:id", async (req, res) => {
       return res.status(404).json({ error: "Screenshot not found" });
     }
 
+    // Convert relative path to absolute path
+    const absolutePath = path.isAbsolute(screenshot.path) 
+      ? screenshot.path 
+      : path.join(process.cwd(), screenshot.path);
+    
     // Check if file exists
-    if (!fs.existsSync(screenshot.path)) {
+    if (!fs.existsSync(absolutePath)) {
       return res.status(404).json({ error: "Image file not found" });
     }
 
     // Get file stats
-    const stats = fs.statSync(screenshot.path);
+    const stats = fs.statSync(absolutePath);
     const fileSize = stats.size;
     const ext = path.extname(screenshot.path).toLowerCase();
 
@@ -722,7 +727,7 @@ router.get("/thumbnail/:id", async (req, res) => {
     res.setHeader("Cache-Control", "public, max-age=31536000"); // Cache for 1 year
 
     // Stream the file
-    const fileStream = fs.createReadStream(screenshot.path);
+    const fileStream = fs.createReadStream(absolutePath);
     fileStream.pipe(res);
   } catch (error) {
     console.error("Error serving thumbnail:", error);
