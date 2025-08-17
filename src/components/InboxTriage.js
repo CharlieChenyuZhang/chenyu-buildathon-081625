@@ -4,7 +4,7 @@ import "./InboxTriage.css";
 
 function InboxTriage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [authUrl, setAuthUrl] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isFetchingEmails, setIsFetchingEmails] = useState(false);
@@ -38,8 +38,8 @@ function InboxTriage() {
   const handleAuthentication = async (e) => {
     e.preventDefault();
 
-    if (!email || !password) {
-      setErrorMessage("Please enter both email and password");
+    if (!email) {
+      setErrorMessage("Please enter your Gmail address");
       return;
     }
 
@@ -50,13 +50,15 @@ function InboxTriage() {
     try {
       const response = await api.post("/api/inbox-triage/authenticate", {
         email,
-        password,
       });
 
       if (response.data.success) {
         setIsAuthenticated(true);
         setAuthMessage(response.data.message);
         setActiveTab("emails");
+      } else if (response.data.requiresAuth) {
+        setAuthUrl(response.data.authUrl);
+        setAuthMessage(response.data.message);
       } else {
         setErrorMessage("Authentication failed");
       }
@@ -294,19 +296,6 @@ function InboxTriage() {
                 />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="password">Password:</label>
-                <input
-                  type="password"
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                  className="form-input"
-                />
-              </div>
-
               <button
                 type="submit"
                 disabled={isAuthenticating}
@@ -315,6 +304,32 @@ function InboxTriage() {
                 {isAuthenticating ? "Authenticating..." : "Connect to Gmail"}
               </button>
             </form>
+
+            {authUrl && (
+              <div className="oauth-section">
+                <div className="oauth-message">
+                  <p>🔐 Gmail requires OAuth2 authentication for security.</p>
+                  <p>
+                    Click the button below to authorize access to your Gmail
+                    account:
+                  </p>
+                </div>
+                <a
+                  href={authUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="oauth-btn"
+                >
+                  🔗 Authorize Gmail Access
+                </a>
+                <div className="oauth-note">
+                  <p>
+                    After authorization, return to this page and try connecting
+                    again.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="auth-info">

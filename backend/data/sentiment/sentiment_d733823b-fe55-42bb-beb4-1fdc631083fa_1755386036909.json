@@ -1,0 +1,190 @@
+{
+  "workspaceId": "d733823b-fe55-42bb-beb4-1fdc631083fa",
+  "timestamp": "2025-08-16T23:13:56.909Z",
+  "totalMessages": 10,
+  "sentimentDistribution": {
+    "positive": 2,
+    "neutral": 3,
+    "negative": 5
+  },
+  "averageSentiment": 0.57,
+  "messages": [
+    {
+      "id": "1755380592.006429",
+      "userId": "U08PLE3PBLY",
+      "text": "i love vibe coding",
+      "timestamp": "2025-08-16T21:43:12.006Z",
+      "channel": "aifund-buildathon-081625",
+      "reactions": [
+        {
+          "name": "raised_hands",
+          "users": [
+            "U08PLE3PBLY"
+          ],
+          "count": 1
+        }
+      ],
+      "threadTs": "1755380592.006429",
+      "isThread": true,
+      "sentiment": "positive",
+      "sentimentConfidence": 0.6,
+      "emotions": [],
+      "intensity": "medium",
+      "context": "Fallback analysis"
+    },
+    {
+      "id": "1755380567.974959",
+      "userId": "U08PLE3PBLY",
+      "text": "I am tired because I didn’t sleep last night and my flight arrived at 9 AM this morning!",
+      "timestamp": "2025-08-16T21:42:47.974Z",
+      "channel": "aifund-buildathon-081625",
+      "reactions": [],
+      "isThread": false,
+      "sentiment": "neutral",
+      "sentimentConfidence": 0.5,
+      "emotions": [],
+      "intensity": "medium",
+      "context": "Fallback analysis"
+    },
+    {
+      "id": "1755379253.392619",
+      "userId": "U08PLE3PBLY",
+      "text": "I love building!",
+      "timestamp": "2025-08-16T21:20:53.392Z",
+      "channel": "aifund-buildathon-081625",
+      "reactions": [],
+      "threadTs": "1755379253.392619",
+      "isThread": true,
+      "sentiment": "positive",
+      "sentimentConfidence": 0.6,
+      "emotions": [],
+      "intensity": "medium",
+      "context": "Fallback analysis"
+    },
+    {
+      "id": "1755377431.332919",
+      "userId": "U08PLE3PBLY",
+      "text": "hello this is the first message",
+      "timestamp": "2025-08-16T20:50:31.332Z",
+      "channel": "aifund-buildathon-081625",
+      "reactions": [],
+      "isThread": false,
+      "sentiment": "neutral",
+      "sentimentConfidence": 0.5,
+      "emotions": [],
+      "intensity": "medium",
+      "context": "Fallback analysis"
+    },
+    {
+      "id": "1755382513.285639",
+      "userId": "U08PLE3PBLY",
+      "text": "same!",
+      "timestamp": "2025-08-16T22:15:13.285Z",
+      "channel": "aifund-buildathon-081625",
+      "reactions": [],
+      "threadTs": "1755380592.006429",
+      "isThread": true,
+      "isThreadReply": true,
+      "parentMessageId": "1755380592.006429",
+      "sentiment": "neutral",
+      "sentimentConfidence": 0.5,
+      "emotions": [],
+      "intensity": "medium",
+      "context": "Fallback analysis"
+    },
+    {
+      "id": "1755385245.285879",
+      "userId": "U08PLE3PBLY",
+      "text": "i feel bad, this is negative!",
+      "timestamp": "2025-08-16T23:00:45.285Z",
+      "channel": "aifund-buildathon-081625",
+      "reactions": [],
+      "threadTs": "1755380592.006429",
+      "isThread": true,
+      "isThreadReply": true,
+      "parentMessageId": "1755380592.006429",
+      "sentiment": "negative",
+      "sentimentConfidence": 0.6,
+      "emotions": [],
+      "intensity": "medium",
+      "context": "Fallback analysis"
+    },
+    {
+      "id": "1755385283.949529",
+      "userId": "U08PLE3PBLY",
+      "text": "this is really bad for learning",
+      "timestamp": "2025-08-16T23:01:23.949Z",
+      "channel": "aifund-buildathon-081625",
+      "reactions": [],
+      "threadTs": "1755380592.006429",
+      "isThread": true,
+      "isThreadReply": true,
+      "parentMessageId": "1755380592.006429",
+      "sentiment": "negative",
+      "sentimentConfidence": 0.6,
+      "emotions": [],
+      "intensity": "medium",
+      "context": "Fallback analysis"
+    },
+    {
+      "id": "1755386021.937769",
+      "userId": "U08PLE3PBLY",
+      "text": "this is bad",
+      "timestamp": "2025-08-16T23:13:41.937Z",
+      "channel": "aifund-buildathon-081625",
+      "reactions": [],
+      "threadTs": "1755380592.006429",
+      "isThread": true,
+      "isThreadReply": true,
+      "parentMessageId": "1755380592.006429",
+      "sentiment": "negative",
+      "sentimentConfidence": 0.6,
+      "emotions": [],
+      "intensity": "medium",
+      "context": "Fallback analysis"
+    },
+    {
+      "id": "1755380943.943439",
+      "userId": "U08PLE3PBLY",
+      "text": "i hate building!",
+      "timestamp": "2025-08-16T21:49:03.943Z",
+      "channel": "aifund-buildathon-081625",
+      "reactions": [],
+      "threadTs": "1755379253.392619",
+      "isThread": true,
+      "isThreadReply": true,
+      "parentMessageId": "1755379253.392619",
+      "sentiment": "negative",
+      "sentimentConfidence": 0.6,
+      "emotions": [],
+      "intensity": "medium",
+      "context": "Fallback analysis"
+    },
+    {
+      "id": "1755380950.614629",
+      "userId": "U08PLE3PBLY",
+      "text": "why do you hate building?",
+      "timestamp": "2025-08-16T21:49:10.614Z",
+      "channel": "aifund-buildathon-081625",
+      "reactions": [],
+      "threadTs": "1755379253.392619",
+      "isThread": true,
+      "isThreadReply": true,
+      "parentMessageId": "1755379253.392619",
+      "sentiment": "negative",
+      "sentimentConfidence": 0.6,
+      "emotions": [],
+      "intensity": "medium",
+      "context": "Fallback analysis"
+    }
+  ],
+  "summary": {
+    "totalMessages": 10,
+    "uniqueUsers": 1,
+    "uniqueChannels": 1,
+    "dateRange": {
+      "start": "2025-08-16T20:50:31.332Z",
+      "end": "2025-08-16T23:13:41.937Z"
+    }
+  }
+}

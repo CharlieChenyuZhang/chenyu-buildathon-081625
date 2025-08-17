@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require("uuid");
 const path = require("path");
 const fs = require("fs");
 const { analyzeEmailClusters } = require("../utils/openai");
+const gmailService = require("../utils/gmailService");
 
 const router = express.Router();
 
@@ -71,125 +72,37 @@ function deleteEmailCluster(id) {
   return saveEmailClusters(data);
 }
 
-// Mock Gmail IMAP data for demonstration
-// In a real implementation, you would use a Gmail API library
-const mockEmails = [
-  {
-    id: "1",
-    subject: "Weekly Team Meeting - Tomorrow at 10 AM",
-    sender: "manager@company.com",
-    date: "2024-01-15T10:00:00Z",
-    body: "Hi team, reminder about our weekly meeting tomorrow. Please prepare your updates.",
-    category: "work",
-    priority: "high",
-  },
-  {
-    id: "2",
-    subject: "Project Update: Q1 Goals",
-    sender: "project-lead@company.com",
-    date: "2024-01-15T09:30:00Z",
-    body: "Here's the latest update on our Q1 project goals and milestones.",
-    category: "work",
-    priority: "medium",
-  },
-  {
-    id: "3",
-    subject: "Invoice #12345 - Payment Due",
-    sender: "billing@vendor.com",
-    date: "2024-01-15T08:15:00Z",
-    body: "Your invoice #12345 is due for payment. Please process within 30 days.",
-    category: "finance",
-    priority: "high",
-  },
-  {
-    id: "4",
-    subject: "Newsletter: Tech Updates",
-    sender: "newsletter@tech.com",
-    date: "2024-01-15T07:00:00Z",
-    body: "This week's tech updates and industry news.",
-    category: "newsletter",
-    priority: "low",
-  },
-  {
-    id: "5",
-    subject: "Dinner Reservation Confirmed",
-    sender: "reservations@restaurant.com",
-    date: "2024-01-15T06:45:00Z",
-    body: "Your dinner reservation for tonight at 7 PM has been confirmed.",
-    category: "personal",
-    priority: "medium",
-  },
-  {
-    id: "6",
-    subject: "Security Alert: New Login",
-    sender: "security@bank.com",
-    date: "2024-01-15T06:30:00Z",
-    body: "We detected a new login to your account. If this wasn't you, please contact us.",
-    category: "security",
-    priority: "high",
-  },
-  {
-    id: "7",
-    subject: "Meeting Request: Client Discussion",
-    sender: "client@clientcompany.com",
-    date: "2024-01-15T05:20:00Z",
-    body: "Would you be available for a call tomorrow to discuss the project requirements?",
-    category: "work",
-    priority: "high",
-  },
-  {
-    id: "8",
-    subject: "Your Order Has Shipped",
-    sender: "orders@store.com",
-    date: "2024-01-15T04:10:00Z",
-    body: "Your recent order has been shipped and is on its way to you.",
-    category: "shopping",
-    priority: "low",
-  },
-  {
-    id: "9",
-    subject: "Password Reset Request",
-    sender: "support@service.com",
-    date: "2024-01-15T03:55:00Z",
-    body: "You requested a password reset. Click the link below to reset your password.",
-    category: "security",
-    priority: "medium",
-  },
-  {
-    id: "10",
-    subject: "Birthday Party Invitation",
-    sender: "friend@email.com",
-    date: "2024-01-15T03:30:00Z",
-    body: "You're invited to my birthday party next weekend! Hope you can make it.",
-    category: "personal",
-    priority: "medium",
-  },
-];
-
 // POST /api/inbox-triage/authenticate
-// Authenticate with Gmail (mock implementation)
+// Authenticate with Gmail using OAuth2
 router.post("/authenticate", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email } = req.body;
 
-    if (!email || !password) {
+    if (!email) {
       return res.status(400).json({
-        error: "Email and password are required",
-        details:
-          "Please provide both email and password for Gmail authentication.",
+        error: "Email is required",
+        details: "Please provide your Gmail address for authentication.",
       });
     }
 
-    // Mock authentication - in real implementation, you would use Gmail API
-    // For now, we'll simulate a successful authentication
-    const authResult = {
-      success: true,
-      email: email,
-      authenticatedAt: new Date().toISOString(),
-      message: "Successfully authenticated with Gmail (mock)",
-    };
+    // Try to authenticate with Gmail API
+    const authResult = await gmailService.authenticate();
 
-    res.json(authResult);
+    if (authResult.authenticated) {
+      res.json({
+        success: true,
+        email: email,
+        authenticatedAt: new Date().toISOString(),
+        message: authResult.message,
+      });
+    } else {
+      res.json({
+        success: false,
+        authUrl: authResult.authUrl,
+        message: authResult.message,
+        requiresAuth: true,
+      });
+    }
   } catch (error) {
     console.error("Authentication error:", error);
     res.status(500).json({
@@ -200,7 +113,7 @@ router.post("/authenticate", async (req, res) => {
 });
 
 // POST /api/inbox-triage/fetch-emails
-// Fetch last 200 emails from Gmail (mock implementation)
+// Fetch last 200 emails from Gmail using Gmail API
 router.post("/fetch-emails", async (req, res) => {
   try {
     const { email } = req.body;
@@ -212,19 +125,15 @@ router.post("/fetch-emails", async (req, res) => {
       });
     }
 
-    // Mock email fetching - in real implementation, you would use Gmail API
-    // For demonstration, we'll return our mock emails
-    const emails = mockEmails.map((email) => ({
-      ...email,
-      fetchedAt: new Date().toISOString(),
-    }));
+    // Fetch real emails from Gmail API
+    const emails = await gmailService.fetchEmails(200);
 
     res.json({
       success: true,
       email: email,
       totalEmails: emails.length,
       emails: emails,
-      message: "Successfully fetched emails (mock data)",
+      message: `Successfully fetched ${emails.length} emails from Gmail`,
     });
   } catch (error) {
     console.error("Email fetching error:", error);
@@ -286,7 +195,7 @@ router.post("/cluster-emails", async (req, res) => {
 });
 
 // POST /api/inbox-triage/archive-cluster
-// Archive all emails in a cluster
+// Archive all emails in a cluster using Gmail API
 router.post("/archive-cluster/:clusterId", async (req, res) => {
   try {
     const { clusterId } = req.params;
@@ -301,27 +210,26 @@ router.post("/archive-cluster/:clusterId", async (req, res) => {
       });
     }
 
-    // Mock archiving - in real implementation, you would use Gmail API
-    // to move emails to archive
-    const archivedEmails = cluster.emailIds.map((emailId) => ({
-      id: emailId,
-      archivedAt: new Date().toISOString(),
-      status: "archived",
-    }));
+    // Archive emails using Gmail API
+    const archiveResults = await gmailService.archiveEmails(cluster.emailIds);
 
     // Update cluster status
     updateEmailCluster(clusterId, {
       archived: true,
       archivedAt: new Date().toISOString(),
-      archivedEmails: archivedEmails,
+      archivedEmails: archiveResults,
     });
+
+    const successfulArchives = archiveResults.filter(
+      (result) => result.status === "archived"
+    ).length;
 
     res.json({
       success: true,
       clusterId: clusterId,
       clusterName: cluster.name,
-      archivedEmails: archivedEmails,
-      message: `Successfully archived ${archivedEmails.length} emails from cluster "${cluster.name}"`,
+      archivedEmails: archiveResults,
+      message: `Successfully archived ${successfulArchives} out of ${cluster.emailIds.length} emails from cluster "${cluster.name}"`,
     });
   } catch (error) {
     console.error("Archive error:", error);
@@ -395,6 +303,40 @@ router.delete("/cluster/:id", async (req, res) => {
     console.error("Error deleting cluster:", error);
     res.status(500).json({
       error: "Failed to delete cluster",
+      details: error.message,
+    });
+  }
+});
+
+// GET /api/inbox-triage/auth/callback
+// Handle OAuth2 callback from Google
+router.get("/auth/callback", async (req, res) => {
+  try {
+    const { code } = req.query;
+
+    if (!code) {
+      return res.status(400).json({
+        error: "Authorization code is required",
+        details: "No authorization code received from Google OAuth.",
+      });
+    }
+
+    // Exchange code for tokens
+    const tokens = await gmailService.getTokensFromCode(code);
+
+    // Set credentials
+    await gmailService.setCredentials(tokens);
+
+    res.json({
+      success: true,
+      message:
+        "Successfully authenticated with Gmail! You can now close this window and return to the app.",
+      authenticatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("OAuth callback error:", error);
+    res.status(500).json({
+      error: "Authentication failed",
       details: error.message,
     });
   }

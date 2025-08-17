@@ -184,6 +184,58 @@
   font-size: 1rem;
 }
 
+/* OAuth Section */
+.oauth-section {
+  margin-top: 25px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 2px solid #e9ecef;
+}
+
+.oauth-message {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.oauth-message p {
+  color: #555;
+  font-size: 1rem;
+  margin-bottom: 8px;
+}
+
+.oauth-btn {
+  display: block;
+  background: #4285f4;
+  color: white;
+  text-decoration: none;
+  text-align: center;
+  border-radius: 8px;
+  padding: 14px 28px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  margin-bottom: 15px;
+}
+
+.oauth-btn:hover {
+  background: #3367d6;
+  transform: translateY(-1px);
+  text-decoration: none;
+  color: white;
+}
+
+.oauth-note {
+  text-align: center;
+}
+
+.oauth-note p {
+  color: #666;
+  font-size: 0.9rem;
+  font-style: italic;
+  margin: 0;
+}
+
 /* Messages */
 .success-message,
 .error-message {

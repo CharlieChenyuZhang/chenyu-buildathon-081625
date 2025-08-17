@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/backend/node_modules
 /.pnp
 .pnp.js
 
@@ -25,4 +26,4 @@ yarn-error.log*
 **/.env
 
 # Sentiment analysis data files
-backend/data/sentiment/*.json
+backend/data/sentiment/*.jsonbackend/node_modules/

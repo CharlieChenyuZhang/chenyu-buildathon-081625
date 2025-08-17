@@ -1,6 +1,6 @@
 # Buildathon Projects - AI-Powered Applications
 
-A collection of 5 innovative AI-powered applications built for a hackathon. Each project demonstrates different aspects of modern AI technology and provides practical solutions for real-world problems. All projects leverage GPT-4 for advanced AI processing including OCR, transcription, sentiment analysis, and natural language understanding.
+A collection of 6 innovative AI-powered applications built for a hackathon. Each project demonstrates different aspects of modern AI technology and provides practical solutions for real-world problems. All projects leverage GPT-4 for advanced AI processing including OCR, transcription, sentiment analysis, and natural language understanding.
 
 ## 🚀 Projects Overview
 
@@ -110,6 +110,27 @@ A collection of 5 innovative AI-powered applications built for a hackathon. Each
   - Educational content organization
   - Legal document analysis
 
+### 6. Inbox Triage Assistant
+
+**Cluster your last 200 emails into actionable groups and archive them with one click using real Gmail integration.**
+
+- **Features:**
+
+  - Gmail OAuth2 authentication
+  - Real email fetching from Gmail API
+  - AI-powered email clustering and categorization
+  - Priority detection and smart categorization
+  - One-click cluster archiving
+  - Email thread management
+  - Real-time inbox organization
+
+- **Use Cases:**
+  - Email overload management
+  - Automated inbox organization
+  - Team communication triage
+  - Priority email identification
+  - Bulk email processing
+
 ## 🤖 AI-Powered Features
 
 All projects leverage advanced AI capabilities powered by OpenAI's GPT-4:
@@ -151,6 +172,7 @@ All projects leverage advanced AI capabilities powered by OpenAI's GPT-4:
 - **OpenAI Whisper** for audio transcription
 - **OpenAI GPT-4 Vision** for image analysis and text extraction
 - **Slack API** for workspace integration
+- **Gmail API** for email integration and management
 - **Simple-git** for repository analysis
 - **Natural** for text processing
 - **PDF-lib** for document generation
@@ -185,6 +207,9 @@ cp .env.example .env
 
 # Configure environment variables
 # Add your API keys and configuration
+
+# For Gmail integration (Inbox Triage), see backend/GMAIL_SETUP.md
+# for detailed setup instructions
 
 # Start development server
 npm run dev
