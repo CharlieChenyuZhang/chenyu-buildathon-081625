@@ -510,6 +510,81 @@
   font-weight: 500;
 }
 
+.repository-info {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.repository-info h4 {
+  margin-bottom: 12px;
+  color: #1d1d1f;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.repo-url {
+  font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas,
+    "Courier New", monospace;
+  font-size: 14px;
+  color: #007aff;
+  margin-bottom: 8px;
+  word-break: break-all;
+}
+
+.repo-branch {
+  font-size: 14px;
+  color: #86868b;
+  margin: 0;
+}
+
+.analysis-scope {
+  margin-top: 24px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.analysis-scope h4 {
+  margin-bottom: 16px;
+  color: #1d1d1f;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.scope-details p {
+  margin: 8px 0;
+  color: #86868b;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scope-details strong {
+  color: #1d1d1f;
+  font-weight: 600;
+  min-width: 100px;
+}
+
+.performance-tip {
+  margin: 20px 0;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #fff3cd 0%, #fff8e1 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 193, 7, 0.2);
+}
+
+.performance-tip p {
+  margin: 0;
+  color: #856404;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 /* Summary Section */
 .summary-section {
   margin-top: 32px;

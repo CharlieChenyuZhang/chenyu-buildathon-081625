@@ -21,15 +21,27 @@ const analysisResults = new Map();
 // Clone and analyze a repository
 router.post("/analyze-repo", async (req, res) => {
   try {
-    const { repoUrl, branch = "main" } = req.body;
+    const {
+      repoUrl,
+      branch = "main",
+      maxCommits = 1000,
+      timeRange = "all",
+    } = req.body;
 
     if (!repoUrl) {
       return res.status(400).json({ error: "Repository URL is required" });
     }
 
     // Validate repository URL
-    if (!repoUrl.includes("github.com") && !repoUrl.includes("gitlab.com") && !repoUrl.includes("bitbucket.org")) {
-      return res.status(400).json({ error: "Please provide a valid GitHub, GitLab, or Bitbucket repository URL" });
+    if (
+      !repoUrl.includes("github.com") &&
+      !repoUrl.includes("gitlab.com") &&
+      !repoUrl.includes("bitbucket.org")
+    ) {
+      return res.status(400).json({
+        error:
+          "Please provide a valid GitHub, GitLab, or Bitbucket repository URL",
+      });
     }
 
     const analysisId = uuidv4();
@@ -37,6 +49,8 @@ router.post("/analyze-repo", async (req, res) => {
       id: analysisId,
       repoUrl: repoUrl,
       branch: branch,
+      maxCommits: maxCommits,
+      timeRange: timeRange,
       status: "processing",
       startedAt: new Date(),
       metrics: {
@@ -52,8 +66,23 @@ router.post("/analyze-repo", async (req, res) => {
 
     analyses.set(analysisId, analysis);
 
+    // Clear any existing analysis results for this repository URL
+    // This prevents showing old data when analyzing the same repo again
+    for (const [existingId, existingAnalysis] of analyses.entries()) {
+      if (existingAnalysis.repoUrl === repoUrl && existingId !== analysisId) {
+        analysisResults.delete(existingId);
+        console.log(`Cleared old analysis results for ${repoUrl}`);
+      }
+    }
+
     // Start analysis in background
-    performRepositoryAnalysis(analysisId, repoUrl, branch);
+    performRepositoryAnalysis(
+      analysisId,
+      repoUrl,
+      branch,
+      maxCommits,
+      timeRange
+    );
 
     res.json({
       message: "Repository analysis started",
@@ -65,11 +94,28 @@ router.post("/analyze-repo", async (req, res) => {
   }
 });
 
+// Helper function to get total commits in repository
+async function getTotalCommitsInRepo(repoGit) {
+  try {
+    const totalLog = await repoGit.log({ maxCount: 0 });
+    return totalLog.total;
+  } catch (error) {
+    console.warn("Could not get total commits:", error.message);
+    return null;
+  }
+}
+
 // Background function to perform repository analysis
-async function performRepositoryAnalysis(analysisId, repoUrl, branch) {
+async function performRepositoryAnalysis(
+  analysisId,
+  repoUrl,
+  branch,
+  maxCommits,
+  timeRange
+) {
   const analysis = analyses.get(analysisId);
   const tempDir = path.join(__dirname, "../temp", analysisId);
-  
+
   try {
     // Create temp directory
     if (!fs.existsSync(path.dirname(tempDir))) {
@@ -79,40 +125,87 @@ async function performRepositoryAnalysis(analysisId, repoUrl, branch) {
     // Clone repository with full history for better analysis
     const git = simpleGit();
     let cloneSuccess = false;
-    
+
+    // First, try to check if the repository is accessible
+    try {
+      console.log(`Checking repository accessibility: ${repoUrl}`);
+      // Try to get repository info without cloning
+      const repoInfo = await git.listRemote([repoUrl]);
+      console.log(
+        `Repository is accessible. Available refs: ${repoInfo
+          .split("\n")
+          .slice(0, 5)
+          .join(", ")}...`
+      );
+    } catch (accessError) {
+      console.log(`Repository access check failed: ${accessError.message}`);
+      // Continue with cloning attempt anyway
+    }
+
     // Try to clone with the specified branch first
     try {
+      console.log(`Attempting to clone ${repoUrl} with branch '${branch}'...`);
       await git.clone(repoUrl, tempDir, ["-b", branch]);
       cloneSuccess = true;
+      console.log(`Successfully cloned with branch '${branch}'`);
     } catch (error) {
-      console.log(`Failed to clone with branch '${branch}', trying default branches...`);
-      
+      console.log(`Failed to clone with branch '${branch}': ${error.message}`);
+      console.log(`Trying default branches...`);
+
       // Try common default branches
       const defaultBranches = ["main", "master", "develop"];
       for (const defaultBranch of defaultBranches) {
         if (defaultBranch === branch) continue; // Skip if we already tried this branch
-        
+
         try {
           // Clean up previous attempt
           if (fs.existsSync(tempDir)) {
             fs.rmSync(tempDir, { recursive: true, force: true });
           }
-          
+
+          console.log(`Attempting to clone with branch '${defaultBranch}'...`);
           await git.clone(repoUrl, tempDir, ["-b", defaultBranch]);
           console.log(`Successfully cloned with branch '${defaultBranch}'`);
           cloneSuccess = true;
           break;
         } catch (branchError) {
-          console.log(`Failed to clone with branch '${defaultBranch}': ${branchError.message}`);
+          console.log(
+            `Failed to clone with branch '${defaultBranch}': ${branchError.message}`
+          );
         }
       }
     }
-    
+
+    // If all branch-specific clones failed, try cloning without specifying a branch
     if (!cloneSuccess) {
-      console.error("Failed to clone repository with any branch");
+      try {
+        console.log(
+          `Attempting to clone without specifying branch (will use default)...`
+        );
+        if (fs.existsSync(tempDir)) {
+          fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+        await git.clone(repoUrl, tempDir);
+        cloneSuccess = true;
+        console.log(`Successfully cloned with default branch`);
+      } catch (fallbackError) {
+        console.log(
+          `Failed to clone with default branch: ${fallbackError.message}`
+        );
+      }
+    }
+
+    if (!cloneSuccess) {
+      console.error("Failed to clone repository with any method");
       analysis.status = "failed";
-      analysis.error = "Failed to clone repository - no valid branch found";
-      
+      analysis.error =
+        "Failed to clone repository. Possible issues:\n" +
+        "1. Repository is private and requires authentication\n" +
+        "2. Repository URL is incorrect\n" +
+        "3. Repository is empty or has no commits\n" +
+        "4. Network connectivity issues\n" +
+        "Please check the repository URL and ensure it's publicly accessible.";
+
       // Clean up temp directory
       if (fs.existsSync(tempDir)) {
         fs.rmSync(tempDir, { recursive: true, force: true });
@@ -122,9 +215,26 @@ async function performRepositoryAnalysis(analysisId, repoUrl, branch) {
 
     const repoGit = simpleGit(tempDir);
 
+    // Calculate date range for filtering
+    let sinceDate = null;
+    if (timeRange !== "all") {
+      const now = new Date();
+      switch (timeRange) {
+        case "last_month":
+          sinceDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case "last_6months":
+          sinceDate = new Date(now.getTime() - 6 * 30 * 24 * 60 * 60 * 1000);
+          break;
+        case "last_year":
+          sinceDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+          break;
+      }
+    }
+
     // Get commit history with comprehensive data
-    const log = await repoGit.log({
-      maxCount: 2000,
+    const logOptions = {
+      maxCount: maxCommits,
       format: {
         hash: "%H",
         author: "%an",
@@ -132,9 +242,16 @@ async function performRepositoryAnalysis(analysisId, repoUrl, branch) {
         date: "%aI",
         message: "%s",
         body: "%b",
-        refs: "%D"
-      }
-    });
+        refs: "%D",
+      },
+    };
+
+    // Add date filter if specified
+    if (sinceDate) {
+      logOptions.from = sinceDate.toISOString();
+    }
+
+    const log = await repoGit.log(logOptions);
 
     // Check if repository is empty
     if (log.all.length === 0) {
@@ -164,7 +281,7 @@ async function performRepositoryAnalysis(analysisId, repoUrl, branch) {
         fileOwnership: [],
         complexity: [],
         features: [],
-        insights: ["Repository is empty with no commit history"]
+        insights: ["Repository is empty with no commit history"],
       });
 
       // Clean up temp directory
@@ -174,7 +291,7 @@ async function performRepositoryAnalysis(analysisId, repoUrl, branch) {
 
     // Get file statistics
     const files = await repoGit.raw(["ls-files"]);
-    const fileList = files.split("\n").filter(f => f.trim());
+    const fileList = files.split("\n").filter((f) => f.trim());
 
     // Get contributor statistics
     const contributors = new Map();
@@ -191,31 +308,42 @@ async function performRepositoryAnalysis(analysisId, repoUrl, branch) {
           linesAdded: 0,
           linesRemoved: 0,
           filesOwned: new Set(),
-          primaryAreas: new Set()
+          primaryAreas: new Set(),
         });
       }
       contributors.get(author).commits++;
 
       // Get commit details
       try {
-        const commitDetails = await repoGit.show([commit.hash, "--stat", "--format="]);
-        const statMatch = commitDetails.match(/(\d+) files? changed(?:, (\d+) insertions?)?(?:, (\d+) deletions?)?/);
-        
+        const commitDetails = await repoGit.show([
+          commit.hash,
+          "--stat",
+          "--format=",
+        ]);
+        const statMatch = commitDetails.match(
+          /(\d+) files? changed(?:, (\d+) insertions?)?(?:, (\d+) deletions?)?/
+        );
+
         if (statMatch) {
           const linesAdded = parseInt(statMatch[2]) || 0;
           const linesRemoved = parseInt(statMatch[3]) || 0;
-          
+
           contributors.get(author).linesAdded += linesAdded;
           contributors.get(author).linesRemoved += linesRemoved;
         }
 
         // Get files changed
-        const filesChanged = await repoGit.raw(["show", "--name-only", "--format=", commit.hash]);
-        const changedFiles = filesChanged.split("\n").filter(f => f.trim());
-        
+        const filesChanged = await repoGit.raw([
+          "show",
+          "--name-only",
+          "--format=",
+          commit.hash,
+        ]);
+        const changedFiles = filesChanged.split("\n").filter((f) => f.trim());
+
         for (const file of changedFiles) {
           contributors.get(author).filesOwned.add(file);
-          
+
           // Track file ownership
           if (!fileOwnership.has(file)) {
             fileOwnership.set(file, new Map());
@@ -233,9 +361,8 @@ async function performRepositoryAnalysis(analysisId, repoUrl, branch) {
           body: commit.body,
           files: changedFiles,
           linesAdded: parseInt(statMatch[2]) || 0,
-          linesRemoved: parseInt(statMatch[3]) || 0
+          linesRemoved: parseInt(statMatch[3]) || 0,
         });
-
       } catch (error) {
         console.warn(`Error processing commit ${commit.hash}:`, error.message);
       }
@@ -243,12 +370,16 @@ async function performRepositoryAnalysis(analysisId, repoUrl, branch) {
 
     // Calculate complexity and trends
     const complexityData = calculateComplexityTrends(commitPatterns);
-    
+
     // Extract business features using AI
     const features = await extractBusinessFeaturesWithAI(commitPatterns);
-    
+
     // Generate insights
-    const insights = await generateInsightsWithAI(commitPatterns, contributors, fileOwnership);
+    const insights = await generateInsightsWithAI(
+      commitPatterns,
+      contributors,
+      fileOwnership
+    );
 
     // Update analysis with results
     analysis.status = "completed";
@@ -261,38 +392,47 @@ async function performRepositoryAnalysis(analysisId, repoUrl, branch) {
         firstCommit: log.all[log.all.length - 1]?.date || null,
         lastCommit: log.all[0]?.date || null,
       },
+      analysisScope: {
+        maxCommits: maxCommits,
+        timeRange: timeRange,
+        sinceDate: sinceDate?.toISOString() || null,
+        totalCommitsInRepo: await getTotalCommitsInRepo(repoGit),
+      },
     };
     analysis.summary = {
       mostActiveFiles: getMostActiveFiles(fileOwnership, 10),
       topContributors: getTopContributors(contributors, 10),
-      majorFeatures: features.map(f => f.name),
+      majorFeatures: features.map((f) => f.name),
     };
 
     // Store detailed results
     analysisResults.set(analysisId, {
       commits: commitPatterns,
-      contributors: Array.from(contributors.values()).map(c => ({
+      contributors: Array.from(contributors.values()).map((c) => ({
         ...c,
         filesOwned: c.filesOwned.size,
-        primaryAreas: Array.from(c.primaryAreas)
+        primaryAreas: Array.from(c.primaryAreas),
       })),
-      fileOwnership: Array.from(fileOwnership.entries()).map(([file, contributors]) => ({
-        file,
-        contributors: Array.from(contributors.entries()).map(([name, count]) => ({ name, count }))
-      })),
+      fileOwnership: Array.from(fileOwnership.entries()).map(
+        ([file, contributors]) => ({
+          file,
+          contributors: Array.from(contributors.entries()).map(
+            ([name, count]) => ({ name, count })
+          ),
+        })
+      ),
       complexity: complexityData,
       features: features,
-      insights: insights
+      insights: insights,
     });
 
     // Clean up temp directory
     fs.rmSync(tempDir, { recursive: true, force: true });
-
   } catch (error) {
     console.error("Analysis failed:", error);
     analysis.status = "failed";
     analysis.error = error.message;
-    
+
     // Clean up temp directory
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true, force: true });
@@ -303,7 +443,7 @@ async function performRepositoryAnalysis(analysisId, repoUrl, branch) {
 // Helper functions
 function calculateComplexityTrends(commits) {
   const monthlyData = new Map();
-  
+
   for (const commit of commits) {
     const month = commit.date.substring(0, 7); // YYYY-MM
     if (!monthlyData.has(month)) {
@@ -313,10 +453,10 @@ function calculateComplexityTrends(commits) {
         filesChanged: 0,
         complexity: 0,
         contributors: new Set(),
-        totalLines: 0
+        totalLines: 0,
       });
     }
-    
+
     const data = monthlyData.get(month);
     data.commitCount++;
     data.filesChanged += commit.files.length;
@@ -326,12 +466,17 @@ function calculateComplexityTrends(commits) {
 
   // Calculate complexity score
   for (const data of monthlyData.values()) {
-    data.complexity = Math.min(1, (data.filesChanged / data.commitCount) * 0.3 + 
-                                   (data.totalLines / data.commitCount) * 0.0001);
+    data.complexity = Math.min(
+      1,
+      (data.filesChanged / data.commitCount) * 0.3 +
+        (data.totalLines / data.commitCount) * 0.0001
+    );
     data.contributors = data.contributors.size;
   }
 
-  return Array.from(monthlyData.values()).sort((a, b) => a.date.localeCompare(b.date));
+  return Array.from(monthlyData.values()).sort((a, b) =>
+    a.date.localeCompare(b.date)
+  );
 }
 
 // Enhanced feature extraction using AI
@@ -339,7 +484,7 @@ async function extractBusinessFeaturesWithAI(commits) {
   try {
     // Group commits by time periods and patterns
     const commitGroups = groupCommitsByPatterns(commits);
-    
+
     // Use AI to analyze commit groups for business features
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -371,14 +516,20 @@ Return a JSON object with this structure:
       "commits": ["hash1"]
     }
   ]
-}`
+}`,
         },
         {
           role: "user",
-          content: `Analyze these commits and identify business features:\n${commits.slice(0, 50).map(c => 
-            `${c.hash.substring(0, 8)} - ${c.message} (${c.files.join(', ')})`
-          ).join('\n')}`
-        }
+          content: `Analyze these commits and identify business features:\n${commits
+            .slice(0, 50)
+            .map(
+              (c) =>
+                `${c.hash.substring(0, 8)} - ${c.message} (${c.files.join(
+                  ", "
+                )})`
+            )
+            .join("\n")}`,
+        },
       ],
       response_format: { type: "json_object" },
       max_tokens: 2000,
@@ -387,7 +538,10 @@ Return a JSON object with this structure:
     const aiAnalysis = JSON.parse(response.choices[0].message.content);
     return aiAnalysis.features || [];
   } catch (error) {
-    console.error("AI feature extraction failed, falling back to keyword-based:", error);
+    console.error(
+      "AI feature extraction failed, falling back to keyword-based:",
+      error
+    );
     return extractBusinessFeatures(commits);
   }
 }
@@ -395,19 +549,43 @@ Return a JSON object with this structure:
 function extractBusinessFeatures(commits) {
   const features = [];
   const featureKeywords = [
-    'auth', 'authentication', 'login', 'signup', 'payment', 'stripe', 'billing',
-    'api', 'database', 'user', 'admin', 'dashboard', 'report', 'analytics',
-    'notification', 'email', 'sms', 'chat', 'messaging', 'file', 'upload',
-    'search', 'filter', 'sort', 'export', 'import', 'backup', 'security'
+    "auth",
+    "authentication",
+    "login",
+    "signup",
+    "payment",
+    "stripe",
+    "billing",
+    "api",
+    "database",
+    "user",
+    "admin",
+    "dashboard",
+    "report",
+    "analytics",
+    "notification",
+    "email",
+    "sms",
+    "chat",
+    "messaging",
+    "file",
+    "upload",
+    "search",
+    "filter",
+    "sort",
+    "export",
+    "import",
+    "backup",
+    "security",
   ];
 
   // Group commits by feature patterns
   const featureGroups = new Map();
-  
+
   for (const commit of commits) {
     const message = commit.message.toLowerCase();
     const body = commit.body.toLowerCase();
-    
+
     for (const keyword of featureKeywords) {
       if (message.includes(keyword) || body.includes(keyword)) {
         if (!featureGroups.has(keyword)) {
@@ -415,31 +593,34 @@ function extractBusinessFeatures(commits) {
             name: keyword.charAt(0).toUpperCase() + keyword.slice(1),
             commits: [],
             timeRange: { start: commit.date, end: commit.date },
-            contributors: new Set()
+            contributors: new Set(),
           });
         }
-        
+
         const group = featureGroups.get(keyword);
         group.commits.push(commit);
         group.contributors.add(commit.author);
-        
-        if (commit.date < group.timeRange.start) group.timeRange.start = commit.date;
-        if (commit.date > group.timeRange.end) group.timeRange.end = commit.date;
+
+        if (commit.date < group.timeRange.start)
+          group.timeRange.start = commit.date;
+        if (commit.date > group.timeRange.end)
+          group.timeRange.end = commit.date;
       }
     }
   }
 
   // Convert to features array
   for (const [keyword, group] of featureGroups) {
-    if (group.commits.length >= 2) { // Only include features with multiple commits
+    if (group.commits.length >= 2) {
+      // Only include features with multiple commits
       features.push({
         name: group.name,
         description: `Feature related to ${keyword}`,
-        commits: group.commits.map(c => c.hash),
+        commits: group.commits.map((c) => c.hash),
         timeRange: group.timeRange,
         contributors: Array.from(group.contributors),
         businessValue: determineBusinessValue(keyword),
-        complexity: determineComplexity(group.commits)
+        complexity: determineComplexity(group.commits),
       });
     }
   }
@@ -451,11 +632,11 @@ function groupCommitsByPatterns(commits) {
   // Group commits by similar patterns and time proximity
   const groups = [];
   const timeWindow = 7 * 24 * 60 * 60 * 1000; // 7 days
-  
+
   for (const commit of commits) {
     const commitTime = new Date(commit.date).getTime();
     let addedToGroup = false;
-    
+
     for (const group of groups) {
       const groupTime = new Date(group.commits[0].date).getTime();
       if (Math.abs(commitTime - groupTime) < timeWindow) {
@@ -464,41 +645,44 @@ function groupCommitsByPatterns(commits) {
         break;
       }
     }
-    
+
     if (!addedToGroup) {
       groups.push({ commits: [commit] });
     }
   }
-  
+
   return groups;
 }
 
 function determineBusinessValue(keyword) {
   const valueMap = {
-    'auth': 'Security and user management',
-    'payment': 'Revenue generation',
-    'api': 'System integration and extensibility',
-    'database': 'Data persistence and management',
-    'user': 'User experience and engagement',
-    'admin': 'System administration and control',
-    'dashboard': 'Data visualization and insights',
-    'report': 'Business intelligence and analytics',
-    'notification': 'User engagement and communication',
-    'search': 'User experience and content discovery',
-    'file': 'Content management and storage',
-    'security': 'Data protection and compliance'
+    auth: "Security and user management",
+    payment: "Revenue generation",
+    api: "System integration and extensibility",
+    database: "Data persistence and management",
+    user: "User experience and engagement",
+    admin: "System administration and control",
+    dashboard: "Data visualization and insights",
+    report: "Business intelligence and analytics",
+    notification: "User engagement and communication",
+    search: "User experience and content discovery",
+    file: "Content management and storage",
+    security: "Data protection and compliance",
   };
-  
-  return valueMap[keyword] || 'Feature enhancement';
+
+  return valueMap[keyword] || "Feature enhancement";
 }
 
 function determineComplexity(commits) {
-  const totalLines = commits.reduce((sum, c) => sum + c.linesAdded + c.linesRemoved, 0);
-  const totalFiles = new Set(commits.flatMap(c => c.files)).size;
-  
-  if (totalLines > 1000 || totalFiles > 20) return 'high';
-  if (totalLines > 500 || totalFiles > 10) return 'medium';
-  return 'low';
+  const totalLines = commits.reduce(
+    (sum, c) => sum + c.linesAdded + c.linesRemoved,
+    0
+  );
+  const totalFiles = new Set(commits.flatMap((c) => c.files)).size;
+
+  if (totalLines > 1000 || totalFiles > 20) return "high";
+  if (totalLines > 500 || totalFiles > 10) return "medium";
+  return "low";
 }
 
 // Enhanced insights generation using AI
@@ -510,7 +694,7 @@ async function generateInsightsWithAI(commits, contributors, fileOwnership) {
       mostActiveFiles: getMostActiveFiles(fileOwnership, 10),
       commitTrends: calculateCommitTrends(commits),
       recentActivity: getRecentActivity(commits),
-      codeQualityMetrics: calculateCodeQualityMetrics(commits)
+      codeQualityMetrics: calculateCodeQualityMetrics(commits),
     };
 
     const response = await openai.chat.completions.create({
@@ -527,52 +711,66 @@ Generate actionable insights from the repository data. Return a JSON array of in
 - Suggests areas for improvement
 - Notes architectural evolution patterns
 
-Focus on practical, actionable insights that would be valuable to engineering managers.`
+Focus on practical, actionable insights that would be valuable to engineering managers.`,
         },
         {
           role: "user",
-          content: `Analyze this repository data and generate insights: ${JSON.stringify(analysisData)}`
-        }
+          content: `Analyze this repository data and generate insights: ${JSON.stringify(
+            analysisData
+          )}`,
+        },
       ],
       response_format: { type: "json_object" },
       max_tokens: 800,
     });
 
     const aiResult = JSON.parse(response.choices[0].message.content);
-    return aiResult.insights || generateInsights(commits, contributors, fileOwnership);
+    return (
+      aiResult.insights ||
+      generateInsights(commits, contributors, fileOwnership)
+    );
   } catch (error) {
-    console.error("AI insights generation failed, falling back to basic insights:", error);
+    console.error(
+      "AI insights generation failed, falling back to basic insights:",
+      error
+    );
     return generateInsights(commits, contributors, fileOwnership);
   }
 }
 
 function generateInsights(commits, contributors, fileOwnership) {
   const insights = [];
-  
+
   // Team insights
-  const topContributor = Array.from(contributors.values())
-    .sort((a, b) => b.commits - a.commits)[0];
-  
+  const topContributor = Array.from(contributors.values()).sort(
+    (a, b) => b.commits - a.commits
+  )[0];
+
   if (topContributor) {
-    insights.push(`${topContributor.name} is the most active contributor with ${topContributor.commits} commits`);
+    insights.push(
+      `${topContributor.name} is the most active contributor with ${topContributor.commits} commits`
+    );
   }
 
   // Activity insights
-  const recentCommits = commits.filter(c => {
+  const recentCommits = commits.filter((c) => {
     const commitDate = new Date(c.date);
     const monthAgo = new Date();
     monthAgo.setMonth(monthAgo.getMonth() - 1);
     return commitDate > monthAgo;
   });
-  
+
   if (recentCommits.length > 0) {
-    insights.push(`Recent activity shows ${recentCommits.length} commits in the last month`);
+    insights.push(
+      `Recent activity shows ${recentCommits.length} commits in the last month`
+    );
   }
 
   // File insights
-  const mostActiveFile = Array.from(fileOwnership.entries())
-    .sort((a, b) => b[1].size - a[1].size)[0];
-  
+  const mostActiveFile = Array.from(fileOwnership.entries()).sort(
+    (a, b) => b[1].size - a[1].size
+  )[0];
+
   if (mostActiveFile) {
     insights.push(`${mostActiveFile[0]} is the most frequently modified file`);
   }
@@ -584,61 +782,79 @@ function calculateCommitTrends(commits) {
   const trends = {};
   const now = new Date();
   const weeks = [];
-  
+
   for (let i = 0; i < 12; i++) {
-    const weekStart = new Date(now.getTime() - (i * 7 * 24 * 60 * 60 * 1000));
-    const weekEnd = new Date(weekStart.getTime() + (7 * 24 * 60 * 60 * 1000));
-    
-    const weekCommits = commits.filter(c => {
+    const weekStart = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
+    const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const weekCommits = commits.filter((c) => {
       const commitDate = new Date(c.date);
       return commitDate >= weekStart && commitDate <= weekEnd;
     });
-    
+
     weeks.push({
       week: i,
       commits: weekCommits.length,
-      contributors: new Set(weekCommits.map(c => c.author)).size,
-      linesChanged: weekCommits.reduce((sum, c) => sum + c.linesAdded + c.linesRemoved, 0)
+      contributors: new Set(weekCommits.map((c) => c.author)).size,
+      linesChanged: weekCommits.reduce(
+        (sum, c) => sum + c.linesAdded + c.linesRemoved,
+        0
+      ),
     });
   }
-  
+
   return weeks.reverse();
 }
 
 function getRecentActivity(commits) {
   const last30Days = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const recentCommits = commits.filter(c => new Date(c.date) > last30Days);
-  
+  const recentCommits = commits.filter((c) => new Date(c.date) > last30Days);
+
   return {
     totalCommits: recentCommits.length,
-    uniqueContributors: new Set(recentCommits.map(c => c.author)).size,
+    uniqueContributors: new Set(recentCommits.map((c) => c.author)).size,
     avgCommitsPerDay: recentCommits.length / 30,
-    mostActiveDay: getMostActiveDay(recentCommits)
+    mostActiveDay: getMostActiveDay(recentCommits),
   };
 }
 
 function getMostActiveDay(commits) {
   const dayCounts = {};
-  commits.forEach(c => {
-    const day = new Date(c.date).toLocaleDateString('en-US', { weekday: 'long' });
+  commits.forEach((c) => {
+    const day = new Date(c.date).toLocaleDateString("en-US", {
+      weekday: "long",
+    });
     dayCounts[day] = (dayCounts[day] || 0) + 1;
   });
-  
-  return Object.entries(dayCounts)
-    .sort((a, b) => b[1] - a[1])[0]?.[0] || "No data";
+
+  return (
+    Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "No data"
+  );
 }
 
 function calculateCodeQualityMetrics(commits) {
   const metrics = {
-    avgCommitSize: Math.round(commits.reduce((sum, c) => sum + c.linesAdded + c.linesRemoved, 0) / commits.length),
-    largeCommits: commits.filter(c => (c.linesAdded + c.linesRemoved) > 500).length,
-    refactorCommits: commits.filter(c => c.message.toLowerCase().includes('refactor')).length,
-    testCommits: commits.filter(c => c.message.toLowerCase().includes('test') || 
-                                     c.files.some(f => f.includes('test') || f.includes('spec'))).length,
-    bugfixCommits: commits.filter(c => c.message.toLowerCase().includes('fix') || 
-                                       c.message.toLowerCase().includes('bug')).length
+    avgCommitSize: Math.round(
+      commits.reduce((sum, c) => sum + c.linesAdded + c.linesRemoved, 0) /
+        commits.length
+    ),
+    largeCommits: commits.filter((c) => c.linesAdded + c.linesRemoved > 500)
+      .length,
+    refactorCommits: commits.filter((c) =>
+      c.message.toLowerCase().includes("refactor")
+    ).length,
+    testCommits: commits.filter(
+      (c) =>
+        c.message.toLowerCase().includes("test") ||
+        c.files.some((f) => f.includes("test") || f.includes("spec"))
+    ).length,
+    bugfixCommits: commits.filter(
+      (c) =>
+        c.message.toLowerCase().includes("fix") ||
+        c.message.toLowerCase().includes("bug")
+    ).length,
   };
-  
+
   return metrics;
 }
 
@@ -653,7 +869,7 @@ function getTopContributors(contributors, limit) {
   return Array.from(contributors.values())
     .sort((a, b) => b.commits - a.commits)
     .slice(0, limit)
-    .map(c => c.name);
+    .map((c) => c.name);
 }
 
 // GET /api/codebase-time-machine/analysis/:id
@@ -701,16 +917,20 @@ router.post("/query", async (req, res) => {
     try {
       // Find relevant commits based on question
       const relevantCommits = findRelevantCommits(results.commits, question);
-      
+
       // Analyze code changes using GPT-4
       const analyzedCommits = [];
-      for (const commit of relevantCommits.slice(0, 5)) { // Limit to 5 commits for performance
+      for (const commit of relevantCommits.slice(0, 5)) {
+        // Limit to 5 commits for performance
         try {
-          const analysis = await analyzeCodeChanges(commit.message, commit.files.map(file => ({
-            file,
-            linesAdded: commit.linesAdded,
-            linesRemoved: commit.linesRemoved,
-          })));
+          const analysis = await analyzeCodeChanges(
+            commit.message,
+            commit.files.map((file) => ({
+              file,
+              linesAdded: commit.linesAdded,
+              linesRemoved: commit.linesRemoved,
+            }))
+          );
           analyzedCommits.push({
             ...commit,
             analysis: analysis,
@@ -729,7 +949,11 @@ router.post("/query", async (req, res) => {
       }
 
       // Generate answer using GPT-4
-      const answer = await generateQueryAnswer(question, analyzedCommits, results);
+      const answer = await generateQueryAnswer(
+        question,
+        analyzedCommits,
+        results
+      );
 
       queryResult = {
         id: uuidv4(),
@@ -755,7 +979,7 @@ router.post("/query", async (req, res) => {
         analysisId: analysisId,
         question: question,
         answer: generateFallbackAnswer(question, results),
-        relatedCommits: results.commits.slice(0, 3).map(commit => ({
+        relatedCommits: results.commits.slice(0, 3).map((commit) => ({
           hash: commit.hash,
           author: commit.author,
           date: commit.date,
@@ -763,7 +987,7 @@ router.post("/query", async (req, res) => {
           files: commit.files,
           relevance: 0.5,
         })),
-        timeline: results.commits.slice(0, 3).map(commit => ({
+        timeline: results.commits.slice(0, 3).map((commit) => ({
           date: commit.date,
           event: commit.message,
           commit: commit.hash,
@@ -781,47 +1005,47 @@ router.post("/query", async (req, res) => {
 // Helper functions for query processing
 function findRelevantCommits(commits, question) {
   const questionLower = question.toLowerCase();
-  const keywords = questionLower.split(' ').filter(word => word.length > 3);
-  
+  const keywords = questionLower.split(" ").filter((word) => word.length > 3);
+
   return commits
-    .map(commit => {
+    .map((commit) => {
       const messageLower = commit.message.toLowerCase();
-      const bodyLower = (commit.body || '').toLowerCase();
-      const filesLower = commit.files.join(' ').toLowerCase();
-      
+      const bodyLower = (commit.body || "").toLowerCase();
+      const filesLower = commit.files.join(" ").toLowerCase();
+
       let score = 0;
       for (const keyword of keywords) {
         if (messageLower.includes(keyword)) score += 3;
         if (bodyLower.includes(keyword)) score += 2;
         if (filesLower.includes(keyword)) score += 1;
       }
-      
+
       return { ...commit, relevanceScore: score };
     })
-    .filter(commit => commit.relevanceScore > 0)
+    .filter((commit) => commit.relevanceScore > 0)
     .sort((a, b) => b.relevanceScore - a.relevanceScore);
 }
 
 function calculateRelevance(commit, question) {
   const questionLower = question.toLowerCase();
   const messageLower = commit.message.toLowerCase();
-  
+
   let relevance = 0;
-  const words = questionLower.split(' ');
-  
+  const words = questionLower.split(" ");
+
   for (const word of words) {
     if (word.length > 3 && messageLower.includes(word)) {
       relevance += 0.2;
     }
   }
-  
+
   return Math.min(1, relevance);
 }
 
 function generateTimeline(commits, question) {
   return commits
     .sort((a, b) => new Date(a.date) - new Date(b.date))
-    .map(commit => ({
+    .map((commit) => ({
       date: commit.date,
       event: commit.message,
       commit: commit.hash,
@@ -831,17 +1055,24 @@ function generateTimeline(commits, question) {
 async function generateQueryAnswer(question, commits, results) {
   try {
     // Prepare comprehensive context for AI analysis
-    const commitContext = commits.map(c => 
-      `${c.hash.substring(0, 8)} by ${c.author} on ${c.date}: ${c.message}\nFiles: ${c.files.join(', ')}\nLines: +${c.linesAdded} -${c.linesRemoved}`
-    ).join('\n\n');
-    
+    const commitContext = commits
+      .map(
+        (c) =>
+          `${c.hash.substring(0, 8)} by ${c.author} on ${c.date}: ${
+            c.message
+          }\nFiles: ${c.files.join(", ")}\nLines: +${c.linesAdded} -${
+            c.linesRemoved
+          }`
+      )
+      .join("\n\n");
+
     const contextualData = {
       totalCommits: results.commits.length,
       totalContributors: results.contributors.length,
       features: results.features?.slice(0, 5) || [],
-      insights: results.insights?.slice(0, 3) || []
+      insights: results.insights?.slice(0, 3) || [],
     };
-    
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -854,7 +1085,7 @@ async function generateQueryAnswer(question, commits, results) {
 - Business context behind technical changes
 
 Provide detailed, insightful answers that explain the "why" behind code changes, not just the "what".
-Focus on patterns, motivations, and business context.`
+Focus on patterns, motivations, and business context.`,
         },
         {
           role: "user",
@@ -866,8 +1097,8 @@ ${JSON.stringify(contextualData, null, 2)}
 Relevant Commits:
 ${commitContext}
 
-Provide a comprehensive answer that explains the evolution, patterns, and context behind the code changes.`
-        }
+Provide a comprehensive answer that explains the evolution, patterns, and context behind the code changes.`,
+        },
       ],
       max_tokens: 800,
       temperature: 0.3,
@@ -882,17 +1113,23 @@ Provide a comprehensive answer that explains the evolution, patterns, and contex
 
 function generateFallbackAnswer(question, results) {
   const questionLower = question.toLowerCase();
-  
-  if (questionLower.includes('auth') || questionLower.includes('authentication')) {
-    const authCommits = results.commits.filter(c => 
-      c.message.toLowerCase().includes('auth') || 
-      c.files.some(f => f.toLowerCase().includes('auth'))
+
+  if (
+    questionLower.includes("auth") ||
+    questionLower.includes("authentication")
+  ) {
+    const authCommits = results.commits.filter(
+      (c) =>
+        c.message.toLowerCase().includes("auth") ||
+        c.files.some((f) => f.toLowerCase().includes("auth"))
     );
     if (authCommits.length > 0) {
-      return `Authentication-related changes were found in ${authCommits.length} commits, starting from ${authCommits[authCommits.length - 1].date}.`;
+      return `Authentication-related changes were found in ${
+        authCommits.length
+      } commits, starting from ${authCommits[authCommits.length - 1].date}.`;
     }
   }
-  
+
   return `Based on the analysis of ${results.commits.length} commits, I found relevant information related to your question. Please check the related commits for more details.`;
 }
 
@@ -935,15 +1172,24 @@ router.get("/ownership/:analysisId", async (req, res) => {
     }
 
     // Calculate file ownership percentages
-    const fileOwnership = results.fileOwnership.map(fileData => {
-      const totalContributions = fileData.contributors.reduce((sum, c) => sum + c.count, 0);
-      const primaryContributor = fileData.contributors.sort((a, b) => b.count - a.count)[0];
-      
+    const fileOwnership = results.fileOwnership.map((fileData) => {
+      const totalContributions = fileData.contributors.reduce(
+        (sum, c) => sum + c.count,
+        0
+      );
+      const primaryContributor = fileData.contributors.sort(
+        (a, b) => b.count - a.count
+      )[0];
+
       return {
         file: fileData.file,
         primaryOwner: primaryContributor.name,
-        ownershipPercentage: Math.round((primaryContributor.count / totalContributions) * 100),
-        lastModified: results.commits.find(c => c.files.includes(fileData.file))?.date || "Unknown",
+        ownershipPercentage: Math.round(
+          (primaryContributor.count / totalContributions) * 100
+        ),
+        lastModified:
+          results.commits.find((c) => c.files.includes(fileData.file))?.date ||
+          "Unknown",
       };
     });
 
@@ -989,14 +1235,24 @@ router.get("/features/:analysisId", async (req, res) => {
 function generateArchitecturalDecisions(commits) {
   const decisions = [];
   const decisionKeywords = [
-    'refactor', 'architecture', 'design', 'pattern', 'framework', 'library',
-    'database', 'api', 'security', 'performance', 'scalability', 'maintainability'
+    "refactor",
+    "architecture",
+    "design",
+    "pattern",
+    "framework",
+    "library",
+    "database",
+    "api",
+    "security",
+    "performance",
+    "scalability",
+    "maintainability",
   ];
 
   for (const commit of commits) {
     const message = commit.message.toLowerCase();
     const body = commit.body.toLowerCase();
-    
+
     for (const keyword of decisionKeywords) {
       if (message.includes(keyword) || body.includes(keyword)) {
         decisions.push({
@@ -1017,10 +1273,10 @@ function generateArchitecturalDecisions(commits) {
 function determineDecisionImpact(commit) {
   const linesChanged = commit.linesAdded + commit.linesRemoved;
   const filesChanged = commit.files.length;
-  
-  if (linesChanged > 500 || filesChanged > 20) return 'high';
-  if (linesChanged > 100 || filesChanged > 5) return 'medium';
-  return 'low';
+
+  if (linesChanged > 500 || filesChanged > 20) return "high";
+  if (linesChanged > 100 || filesChanged > 5) return "medium";
+  return "low";
 }
 
 // GET /api/codebase-time-machine/commits/:analysisId
@@ -1037,22 +1293,20 @@ router.get("/commits/:analysisId", async (req, res) => {
 
     // Apply filters
     let filteredCommits = results.commits;
-    
+
     if (author) {
-      filteredCommits = filteredCommits.filter(c => 
+      filteredCommits = filteredCommits.filter((c) =>
         c.author.toLowerCase().includes(author.toLowerCase())
       );
     }
-    
+
     if (date) {
-      filteredCommits = filteredCommits.filter(c => 
-        c.date.startsWith(date)
-      );
+      filteredCommits = filteredCommits.filter((c) => c.date.startsWith(date));
     }
-    
+
     if (file) {
-      filteredCommits = filteredCommits.filter(c => 
-        c.files.some(f => f.toLowerCase().includes(file.toLowerCase()))
+      filteredCommits = filteredCommits.filter((c) =>
+        c.files.some((f) => f.toLowerCase().includes(file.toLowerCase()))
       );
     }
 
@@ -1061,25 +1315,31 @@ router.get("/commits/:analysisId", async (req, res) => {
 
     // Calculate summary
     const totalCommits = results.commits.length;
-    const totalAuthors = new Set(results.commits.map(c => c.author)).size;
+    const totalAuthors = new Set(results.commits.map((c) => c.author)).size;
     const averageCommitSize = Math.round(
-      results.commits.reduce((sum, c) => sum + c.linesAdded + c.linesRemoved, 0) / totalCommits
+      results.commits.reduce(
+        (sum, c) => sum + c.linesAdded + c.linesRemoved,
+        0
+      ) / totalCommits
     );
-    
+
     // Find most active day
     const dayCounts = {};
-    results.commits.forEach(c => {
-      const day = new Date(c.date).toLocaleDateString('en-US', { weekday: 'long' });
+    results.commits.forEach((c) => {
+      const day = new Date(c.date).toLocaleDateString("en-US", {
+        weekday: "long",
+      });
       dayCounts[day] = (dayCounts[day] || 0) + 1;
     });
-    const mostActiveDay = Object.entries(dayCounts)
-      .sort((a, b) => b[1] - a[1])[0]?.[0] || "Unknown";
+    const mostActiveDay =
+      Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+      "Unknown";
 
     const commits = {
       analysisId: analysisId,
-      commits: filteredCommits.map(c => ({
+      commits: filteredCommits.map((c) => ({
         ...c,
-        impact: determineCommitImpact(c)
+        impact: determineCommitImpact(c),
       })),
       summary: {
         totalCommits,
@@ -1099,11 +1359,70 @@ router.get("/commits/:analysisId", async (req, res) => {
 function determineCommitImpact(commit) {
   const linesChanged = commit.linesAdded + commit.linesRemoved;
   const filesChanged = commit.files.length;
-  
-  if (linesChanged > 500 || filesChanged > 20) return 'high';
-  if (linesChanged > 100 || filesChanged > 5) return 'medium';
-  return 'low';
+
+  if (linesChanged > 500 || filesChanged > 20) return "high";
+  if (linesChanged > 100 || filesChanged > 5) return "medium";
+  return "low";
 }
+
+// GET /api/codebase-time-machine/debug-storage
+// Debug endpoint to see what's stored in memory
+router.get("/debug-storage", async (req, res) => {
+  try {
+    const analysesList = Array.from(analyses.entries()).map(
+      ([id, analysis]) => ({
+        id,
+        repoUrl: analysis.repoUrl,
+        status: analysis.status,
+        startedAt: analysis.startedAt,
+        completedAt: analysis.completedAt,
+      })
+    );
+
+    const resultsList = Array.from(analysisResults.entries()).map(
+      ([id, results]) => ({
+        id,
+        hasResults: !!results,
+        commitCount: results?.commits?.length || 0,
+      })
+    );
+
+    res.json({
+      analyses: analysesList,
+      results: resultsList,
+      totalAnalyses: analyses.size,
+      totalResults: analysisResults.size,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/codebase-time-machine/test-repo-access
+// Test repository access (for debugging)
+router.get("/test-repo-access", async (req, res) => {
+  try {
+    const { repoUrl } = req.query;
+    if (!repoUrl) {
+      return res.status(400).json({ error: "Repository URL is required" });
+    }
+
+    const git = simpleGit();
+    const repoInfo = await git.listRemote([repoUrl]);
+    const refs = repoInfo.split("\n").filter((line) => line.trim());
+
+    res.json({
+      accessible: true,
+      refs: refs.slice(0, 10), // Show first 10 refs
+      totalRefs: refs.length,
+    });
+  } catch (error) {
+    res.json({
+      accessible: false,
+      error: error.message,
+    });
+  }
+});
 
 // GET /api/codebase-time-machine/analyses
 // Get all repository analyses

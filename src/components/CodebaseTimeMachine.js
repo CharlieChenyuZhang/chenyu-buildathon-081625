@@ -20,6 +20,8 @@ function CodebaseTimeMachine() {
   const [repoForm, setRepoForm] = useState({
     repoUrl: "",
     branch: "main",
+    maxCommits: 1000,
+    timeRange: "all", // "all", "last_year", "last_6months", "last_month"
   });
 
   // Query form
@@ -50,7 +52,7 @@ function CodebaseTimeMachine() {
 
       return () => clearInterval(interval);
     }
-  }, [selectedAnalysis]);
+  }, [selectedAnalysis?.id, selectedAnalysis?.status]);
 
   // Smooth scroll to section
   const scrollToSection = (sectionRef) => {
@@ -96,11 +98,7 @@ function CodebaseTimeMachine() {
 
       if (selectedAnalysis?.id === analysisId) {
         setSelectedAnalysis(updatedAnalysis);
-
-        // If analysis completed, load details
-        if (updatedAnalysis.status === "completed") {
-          loadAnalysisDetails(analysisId);
-        }
+        // Note: loadAnalysisDetails will be called by the separate useEffect when status changes to "completed"
       }
     } catch (error) {
       console.error("Error loading analysis status:", error);
@@ -123,7 +121,19 @@ function CodebaseTimeMachine() {
       );
       setAnalyses((prev) => [...prev, response.data.analysis]);
       setSelectedAnalysis(response.data.analysis);
-      setRepoForm({ repoUrl: "", branch: "main" });
+      // Clear loaded details and reset state for the new analysis
+      loadedDetailsRef.current.clear();
+      setEvolution(null);
+      setOwnership(null);
+      setFeatures(null);
+      setCommits(null);
+      setQueryResult(null);
+      setRepoForm({
+        repoUrl: "",
+        branch: "main",
+        maxCommits: 1000,
+        timeRange: "all",
+      });
       setError(null);
     } catch (error) {
       console.error("Analysis error:", error);
@@ -301,6 +311,50 @@ function CodebaseTimeMachine() {
               className="form-input"
             />
           </div>
+          <div className="form-group">
+            <label htmlFor="maxCommits">Max Commits to Analyze</label>
+            <select
+              id="maxCommits"
+              value={repoForm.maxCommits}
+              onChange={(e) =>
+                setRepoForm((prev) => ({
+                  ...prev,
+                  maxCommits: parseInt(e.target.value),
+                }))
+              }
+              disabled={isAnalyzing}
+              className="form-input"
+            >
+              <option value={500}>500 commits (Fast)</option>
+              <option value={1000}>1,000 commits (Recommended)</option>
+              <option value={2000}>2,000 commits (Comprehensive)</option>
+              <option value={5000}>5,000 commits (Deep)</option>
+              <option value={10000}>10,000 commits (Very Deep)</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label htmlFor="timeRange">Time Range</label>
+            <select
+              id="timeRange"
+              value={repoForm.timeRange}
+              onChange={(e) =>
+                setRepoForm((prev) => ({ ...prev, timeRange: e.target.value }))
+              }
+              disabled={isAnalyzing}
+              className="form-input"
+            >
+              <option value="all">All time</option>
+              <option value="last_year">Last year</option>
+              <option value="last_6months">Last 6 months</option>
+              <option value="last_month">Last month</option>
+            </select>
+          </div>
+          <div className="performance-tip">
+            <p>
+              💡 <strong>Performance Tip:</strong> For large repositories, start
+              with fewer commits or a shorter time range for faster analysis.
+            </p>
+          </div>
           <button
             type="submit"
             disabled={isAnalyzing}
@@ -399,6 +453,13 @@ function CodebaseTimeMachine() {
 
             {selectedAnalysis.startedAt && (
               <div className="timing-info">
+                <div className="repository-info">
+                  <h4>Repository</h4>
+                  <p className="repo-url">{selectedAnalysis.repoUrl}</p>
+                  <p className="repo-branch">
+                    Branch: {selectedAnalysis.branch}
+                  </p>
+                </div>
                 <p>
                   <strong>Started:</strong>{" "}
                   {formatDateTime(selectedAnalysis.startedAt)}
@@ -408,6 +469,47 @@ function CodebaseTimeMachine() {
                     <strong>Completed:</strong>{" "}
                     {formatDateTime(selectedAnalysis.completedAt)}
                   </p>
+                )}
+                {selectedAnalysis.metrics?.analysisScope && (
+                  <div className="analysis-scope">
+                    <h4>Analysis Scope</h4>
+                    <div className="scope-details">
+                      <p>
+                        <strong>Analyzed:</strong>{" "}
+                        {selectedAnalysis.metrics.totalCommits} commits
+                        {selectedAnalysis.metrics.analysisScope
+                          .totalCommitsInRepo && (
+                          <span>
+                            {" "}
+                            (of{" "}
+                            {selectedAnalysis.metrics.analysisScope.totalCommitsInRepo.toLocaleString()}{" "}
+                            total)
+                          </span>
+                        )}
+                      </p>
+                      <p>
+                        <strong>Time Range:</strong>{" "}
+                        {selectedAnalysis.metrics.analysisScope.timeRange.replace(
+                          "_",
+                          " "
+                        )}
+                        {selectedAnalysis.metrics.analysisScope.sinceDate && (
+                          <span>
+                            {" "}
+                            (since{" "}
+                            {formatDate(
+                              selectedAnalysis.metrics.analysisScope.sinceDate
+                            )}
+                            )
+                          </span>
+                        )}
+                      </p>
+                      <p>
+                        <strong>Max Commits:</strong>{" "}
+                        {selectedAnalysis.metrics.analysisScope.maxCommits.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
