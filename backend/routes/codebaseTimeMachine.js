@@ -127,9 +127,55 @@ router.post("/analyze-repo", async (req, res) => {
     // Quick repository accessibility check before starting analysis
     try {
       console.log(`🔍 Pre-checking repository: ${repoUrl}`);
+
+      // Try GitHub API first if it's a GitHub repository and git fails
+      if (repoUrl.includes("github.com")) {
+        try {
+          console.log(`🔍 Trying GitHub API for: ${repoUrl}`);
+          const repoInfo = await getRepositoryInfo(repoUrl);
+          console.log(`✅ GitHub API pre-check passed: ${repoInfo.name}`);
+
+          // If GitHub API works, use it instead of git
+          const analysisId = uuidv4();
+          const analysis = {
+            id: analysisId,
+            repoUrl: repoUrl,
+            branch: branch,
+            maxCommits: maxCommits,
+            timeRange: timeRange,
+            method: "github-api",
+            status: "processing",
+            startedAt: new Date(),
+            metrics: {
+              totalCommits: 0,
+              totalFiles: 0,
+              contributors: 0,
+              timeRange: {
+                firstCommit: null,
+                lastCommit: null,
+              },
+            },
+          };
+
+          analyses.set(analysisId, analysis);
+          performGitHubAPIAnalysis(analysisId, repoUrl, maxCommits, timeRange);
+
+          return res.json({
+            message:
+              "Repository analysis started using GitHub API (git not available)",
+            analysis: analysis,
+          });
+        } catch (apiError) {
+          console.log(
+            `❌ GitHub API failed, falling back to git: ${apiError.message}`
+          );
+        }
+      }
+
+      // Fallback to git check
       const git = simpleGit();
       await git.listRemote([repoUrl]);
-      console.log(`✅ Repository pre-check passed`);
+      console.log(`✅ Git repository pre-check passed`);
     } catch (preCheckError) {
       console.error(`❌ Repository pre-check failed: ${preCheckError.message}`);
       return res.status(400).json({
