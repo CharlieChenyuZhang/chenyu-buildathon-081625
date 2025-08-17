@@ -34,6 +34,9 @@ function CodebaseTimeMachine() {
   const ownershipRef = useRef(null);
   const featuresRef = useRef(null);
 
+  // Ref to track if details have been loaded for current analysis
+  const loadedDetailsRef = useRef(new Set());
+
   useEffect(() => {
     loadAnalyses();
   }, []);
@@ -70,6 +73,8 @@ function CodebaseTimeMachine() {
       if (response.data.analyses.length > 0 && !selectedAnalysis) {
         setSelectedAnalysis(response.data.analyses[0]);
       }
+      // Clear loaded details when reloading analyses
+      loadedDetailsRef.current.clear();
     } catch (error) {
       console.error("Error loading analyses:", error);
       setError("Failed to load analyses. Please try again.");
@@ -193,9 +198,13 @@ function CodebaseTimeMachine() {
 
   useEffect(() => {
     if (selectedAnalysis && selectedAnalysis.status === "completed") {
-      loadAnalysisDetails(selectedAnalysis.id);
+      // Only load details if we haven't already loaded them for this analysis
+      if (!loadedDetailsRef.current.has(selectedAnalysis.id)) {
+        loadAnalysisDetails(selectedAnalysis.id);
+        loadedDetailsRef.current.add(selectedAnalysis.id);
+      }
     }
-  }, [selectedAnalysis]);
+  }, [selectedAnalysis?.id, selectedAnalysis?.status]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -319,6 +328,15 @@ function CodebaseTimeMachine() {
               onChange={(e) => {
                 const analysis = analyses.find((a) => a.id === e.target.value);
                 setSelectedAnalysis(analysis);
+                // Clear loaded details when switching analyses
+                if (
+                  analysis &&
+                  analysis.status === "completed" &&
+                  !loadedDetailsRef.current.has(analysis.id)
+                ) {
+                  loadAnalysisDetails(analysis.id);
+                  loadedDetailsRef.current.add(analysis.id);
+                }
               }}
               disabled={loading}
               className="analysis-select"
