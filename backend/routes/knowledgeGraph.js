@@ -99,7 +99,7 @@ router.post(
         id: uuidv4(),
         filename: file.filename,
         originalName: file.originalname,
-        path: file.path,
+        path: path.relative(process.cwd(), file.path), // Store relative path
         size: file.size,
         uploadedAt: new Date(),
         status: "pending",
@@ -108,7 +108,9 @@ router.post(
       // Process documents with GPT-4
       for (const file of uploadedFiles) {
         try {
-          const filePath = file.path;
+          const filePath = path.isAbsolute(file.path)
+            ? file.path
+            : path.join(process.cwd(), file.path);
           const fileExtension = path.extname(file.originalName).toLowerCase();
 
           let textContent = "";
@@ -120,25 +122,26 @@ router.post(
             const htmlContent = fs.readFileSync(filePath, "utf8");
             // Basic HTML text extraction
             textContent = htmlContent
-              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-              .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-              .replace(/<[^>]+>/g, ' ')
-              .replace(/\s+/g, ' ')
+              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+              .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+              .replace(/<[^>]+>/g, " ")
+              .replace(/\s+/g, " ")
               .trim();
           } else if (fileExtension === ".pdf") {
             // PDF text extraction using pdf-lib
             try {
-              const { PDFDocument } = require('pdf-lib');
+              const { PDFDocument } = require("pdf-lib");
               const pdfBytes = fs.readFileSync(filePath);
               const pdfDoc = await PDFDocument.load(pdfBytes);
               const pages = pdfDoc.getPages();
-              
-              let pdfText = '';
+
+              let pdfText = "";
               // Note: pdf-lib doesn't extract text directly, need another library
               // For now, use a placeholder - in production, use pdf2pic + tesseract or pdf-parse
-              textContent = "PDF text extraction requires additional setup - content processed as binary";
+              textContent =
+                "PDF text extraction requires additional setup - content processed as binary";
             } catch (pdfError) {
-              console.error('PDF processing error:', pdfError);
+              console.error("PDF processing error:", pdfError);
               textContent = "Error processing PDF file";
             }
           } else {
@@ -169,9 +172,9 @@ router.post(
       // Add documents to project
       if (!project.documents) project.documents = [];
       project.documents.push(...uploadedFiles);
-      
-      // Update project stats  
-      const processedCount = uploadedFiles.filter(f => f.processed).length;
+
+      // Update project stats
+      const processedCount = uploadedFiles.filter((f) => f.processed).length;
 
       res.json({
         message: "Documents uploaded successfully",
@@ -215,36 +218,39 @@ router.post("/project/:id/add-url", async (req, res) => {
 
     try {
       // Fetch webpage content
-      const axios = require('axios');
+      const axios = require("axios");
       const response = await axios.get(url, {
         timeout: 30000,
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; KnowledgeGraph/1.0)'
-        }
+          "User-Agent": "Mozilla/5.0 (compatible; KnowledgeGraph/1.0)",
+        },
       });
 
-      let textContent = '';
-      
+      let textContent = "";
+
       // Basic HTML content extraction
-      if (response.headers['content-type']?.includes('text/html')) {
+      if (response.headers["content-type"]?.includes("text/html")) {
         // Simple regex to extract text from HTML (for basic cases)
         textContent = response.data
-          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/\s+/g, ' ')
+          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
           .trim();
-      } else if (response.headers['content-type']?.includes('text/plain')) {
+      } else if (response.headers["content-type"]?.includes("text/plain")) {
         textContent = response.data;
       }
 
-      if (textContent.length > 5000000) { // 5MB text limit
+      if (textContent.length > 5000000) {
+        // 5MB text limit
         textContent = textContent.substring(0, 5000000);
       }
 
       // Extract entities and relationships using GPT-4
       if (textContent) {
-        const extractionResult = await extractEntitiesAndRelationships(textContent);
+        const extractionResult = await extractEntitiesAndRelationships(
+          textContent
+        );
         urlContent.textContent = textContent;
         urlContent.entities = extractionResult.entities || [];
         urlContent.relationships = extractionResult.relationships || [];
@@ -257,7 +263,7 @@ router.post("/project/:id/add-url", async (req, res) => {
         urlContent.status = "failed";
       }
     } catch (fetchError) {
-      console.error('URL fetch error:', fetchError);
+      console.error("URL fetch error:", fetchError);
       urlContent.processed = false;
       urlContent.error = `Failed to fetch URL: ${fetchError.message}`;
       urlContent.status = "failed";

@@ -120,13 +120,17 @@ router.post("/upload-audio", (req, res) => {
         id: uuidv4(),
         filename: req.file.filename,
         originalName: req.file.originalname,
-        path: req.file.path,
+        path: path.relative(process.cwd(), req.file.path), // Store relative path
         size: req.file.size,
         uploadedAt: new Date(),
         status: "processing",
       };
 
       // Process audio file with GPT-4 and Whisper
+      const audioFilePath = path.isAbsolute(req.file.path)
+        ? req.file.path
+        : path.join(process.cwd(), req.file.path);
+
       try {
         console.log("Starting audio processing for file:", req.file.filename);
         const audioType = path.extname(req.file.originalname).substring(1);
@@ -134,7 +138,7 @@ router.post("/upload-audio", (req, res) => {
 
         // Transcribe audio using Whisper
         console.log("Starting transcription...");
-        const transcribedText = await transcribeAudio(req.file.path, audioType);
+        const transcribedText = await transcribeAudio(audioFilePath, audioType);
         console.log(
           "Transcription completed, length:",
           transcribedText?.length
@@ -151,7 +155,7 @@ router.post("/upload-audio", (req, res) => {
 
         // Save processed data to JSON file using audioId
         const dataPath = path.join(
-          path.dirname(req.file.path),
+          path.dirname(audioFilePath),
           `${audioFile.id}.json`
         );
         console.log("Saving JSON file to:", dataPath);
@@ -171,8 +175,8 @@ router.post("/upload-audio", (req, res) => {
         audioFile.error = error.message;
 
         // Still save a JSON file with error information
-        const dataPath = path.join(
-          path.dirname(req.file.path),
+        const errorDataPath = path.join(
+          path.dirname(audioFilePath),
           `${audioFile.id}.json`
         );
 
@@ -183,8 +187,8 @@ router.post("/upload-audio", (req, res) => {
           processedAt: new Date(),
         };
 
-        fs.writeFileSync(dataPath, JSON.stringify(errorData, null, 2));
-        console.log("Error JSON file saved to:", dataPath);
+        fs.writeFileSync(errorDataPath, JSON.stringify(errorData, null, 2));
+        console.log("Error JSON file saved to:", errorDataPath);
       }
 
       res.json({
@@ -222,13 +226,17 @@ router.post("/record-audio", (req, res) => {
         id: uuidv4(),
         filename: req.file.filename,
         originalName: "recorded-audio.wav",
-        path: req.file.path,
+        path: path.relative(process.cwd(), req.file.path), // Store relative path
         size: req.file.size,
         recordedAt: new Date(),
         status: "processing",
       };
 
       // Process recorded audio with Whisper
+      const recordedAudioFilePath = path.isAbsolute(req.file.path)
+        ? req.file.path
+        : path.join(process.cwd(), req.file.path);
+
       try {
         console.log(
           "Starting recorded audio processing for file:",
@@ -239,7 +247,10 @@ router.post("/record-audio", (req, res) => {
 
         // Transcribe audio using Whisper
         console.log("Starting transcription...");
-        const transcribedText = await transcribeAudio(req.file.path, audioType);
+        const transcribedText = await transcribeAudio(
+          recordedAudioFilePath,
+          audioType
+        );
         console.log(
           "Transcription completed, length:",
           transcribedText?.length
@@ -256,7 +267,7 @@ router.post("/record-audio", (req, res) => {
 
         // Save processed data to JSON file using audioId
         const dataPath = path.join(
-          path.dirname(req.file.path),
+          path.dirname(recordedAudioFilePath),
           `${audioFile.id}.json`
         );
         console.log("Saving JSON file to:", dataPath);
@@ -276,8 +287,8 @@ router.post("/record-audio", (req, res) => {
         audioFile.error = error.message;
 
         // Still save a JSON file with error information
-        const dataPath = path.join(
-          path.dirname(req.file.path),
+        const errorDataPath = path.join(
+          path.dirname(recordedAudioFilePath),
           `${audioFile.id}.json`
         );
 
@@ -288,8 +299,8 @@ router.post("/record-audio", (req, res) => {
           processedAt: new Date(),
         };
 
-        fs.writeFileSync(dataPath, JSON.stringify(errorData, null, 2));
-        console.log("Error JSON file saved to:", dataPath);
+        fs.writeFileSync(errorDataPath, JSON.stringify(errorData, null, 2));
+        console.log("Error JSON file saved to:", errorDataPath);
       }
 
       res.json({
