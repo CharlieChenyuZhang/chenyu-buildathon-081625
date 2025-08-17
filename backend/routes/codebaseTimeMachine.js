@@ -5,6 +5,7 @@ const fs = require("fs");
 const simpleGit = require("simple-git");
 const OpenAI = require("openai");
 const { analyzeCodeChanges } = require("../utils/openai");
+const https = require("https");
 
 // ⚠️ APP RUNNER DEPLOYMENT WARNING ⚠️
 // This code uses in-memory storage which will NOT work properly in App Runner:
@@ -37,6 +38,64 @@ console.log(`🚀 Container started at: ${containerStartTime.toISOString()}`);
 console.log(
   `⚠️  WARNING: Using in-memory storage - data will be lost on container restart`
 );
+
+// POST /api/codebase-time-machine/analyze-repo-api
+// Analyze repository using GitHub API (no cloning required)
+router.post("/analyze-repo-api", async (req, res) => {
+  try {
+    const {
+      repoUrl,
+      branch = "main",
+      maxCommits = 100,
+      timeRange = "all",
+    } = req.body;
+
+    if (!repoUrl) {
+      return res.status(400).json({ error: "Repository URL is required" });
+    }
+
+    // Validate repository URL
+    if (!repoUrl.includes("github.com")) {
+      return res.status(400).json({
+        error: "GitHub API analysis only supports GitHub repositories",
+      });
+    }
+
+    const analysisId = uuidv4();
+    const analysis = {
+      id: analysisId,
+      repoUrl: repoUrl,
+      branch: branch,
+      maxCommits: maxCommits,
+      timeRange: timeRange,
+      method: "github-api",
+      status: "processing",
+      startedAt: new Date(),
+      metrics: {
+        totalCommits: 0,
+        totalFiles: 0,
+        contributors: 0,
+        timeRange: {
+          firstCommit: null,
+          lastCommit: null,
+        },
+      },
+    };
+
+    analyses.set(analysisId, analysis);
+
+    // Start analysis in background
+    performGitHubAPIAnalysis(analysisId, repoUrl, maxCommits, timeRange);
+
+    res.json({
+      message: "Repository analysis started using GitHub API",
+      analysis: analysis,
+    });
+  } catch (error) {
+    console.error("GitHub API analysis error:", error);
+    res.status(500).json({ error: "Failed to start repository analysis" });
+  }
+});
 
 // POST /api/codebase-time-machine/analyze-repo
 // Clone and analyze a repository
@@ -132,6 +191,125 @@ router.post("/analyze-repo", async (req, res) => {
   }
 });
 
+// GitHub API helper functions
+async function makeGitHubRequest(endpoint) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: "api.github.com",
+      path: endpoint,
+      method: "GET",
+      headers: {
+        "User-Agent": "CodebaseTimeMachine/1.0",
+        Accept: "application/vnd.github.v3+json",
+      },
+    };
+
+    // Add GitHub token if available (for higher rate limits)
+    if (process.env.GITHUB_TOKEN) {
+      options.headers["Authorization"] = `token ${process.env.GITHUB_TOKEN}`;
+    }
+
+    const req = https.request(options, (res) => {
+      let data = "";
+      res.on("data", (chunk) => (data += chunk));
+      res.on("end", () => {
+        try {
+          const jsonData = JSON.parse(data);
+          if (res.statusCode >= 400) {
+            reject(new Error(jsonData.message || `HTTP ${res.statusCode}`));
+          } else {
+            resolve(jsonData);
+          }
+        } catch (error) {
+          reject(new Error("Invalid JSON response"));
+        }
+      });
+    });
+
+    req.on("error", reject);
+    req.setTimeout(10000, () => reject(new Error("Request timeout")));
+    req.end();
+  });
+}
+
+// Extract owner and repo from GitHub URL
+function parseGitHubUrl(repoUrl) {
+  const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+  if (!match) {
+    throw new Error("Invalid GitHub URL");
+  }
+  return { owner: match[1], repo: match[2].replace(".git", "") };
+}
+
+// Get repository info from GitHub API
+async function getRepositoryInfo(repoUrl) {
+  try {
+    const { owner, repo } = parseGitHubUrl(repoUrl);
+    const endpoint = `/repos/${owner}/${repo}`;
+    return await makeGitHubRequest(endpoint);
+  } catch (error) {
+    throw new Error(`Failed to get repository info: ${error.message}`);
+  }
+}
+
+// Get commits from GitHub API
+async function getCommitsFromGitHub(repoUrl, maxCommits = 100, since = null) {
+  try {
+    const { owner, repo } = parseGitHubUrl(repoUrl);
+    let endpoint = `/repos/${owner}/${repo}/commits?per_page=${Math.min(
+      maxCommits,
+      100
+    )}`;
+
+    if (since) {
+      endpoint += `&since=${since}`;
+    }
+
+    const commits = await makeGitHubRequest(endpoint);
+
+    // Get detailed commit info for each commit
+    const detailedCommits = await Promise.all(
+      commits.slice(0, maxCommits).map(async (commit) => {
+        try {
+          const commitDetails = await makeGitHubRequest(
+            `/repos/${owner}/${repo}/commits/${commit.sha}`
+          );
+          return {
+            hash: commit.sha,
+            author: commit.commit.author.name,
+            authorEmail: commit.commit.author.email,
+            date: commit.commit.author.date,
+            message: commit.commit.message,
+            body: commit.commit.message.split("\n\n")[1] || "",
+            files: commitDetails.files?.map((f) => f.filename) || [],
+            linesAdded: commitDetails.stats?.additions || 0,
+            linesRemoved: commitDetails.stats?.deletions || 0,
+          };
+        } catch (error) {
+          console.warn(
+            `Failed to get details for commit ${commit.sha}: ${error.message}`
+          );
+          return {
+            hash: commit.sha,
+            author: commit.commit.author.name,
+            authorEmail: commit.commit.author.email,
+            date: commit.commit.author.date,
+            message: commit.commit.message,
+            body: "",
+            files: [],
+            linesAdded: 0,
+            linesRemoved: 0,
+          };
+        }
+      })
+    );
+
+    return detailedCommits;
+  } catch (error) {
+    throw new Error(`Failed to get commits: ${error.message}`);
+  }
+}
+
 // Helper function to get total commits in repository
 async function getTotalCommitsInRepo(repoGit) {
   try {
@@ -140,6 +318,187 @@ async function getTotalCommitsInRepo(repoGit) {
   } catch (error) {
     console.warn("Could not get total commits:", error.message);
     return null;
+  }
+}
+
+// Background function to perform GitHub API analysis
+async function performGitHubAPIAnalysis(
+  analysisId,
+  repoUrl,
+  maxCommits,
+  timeRange
+) {
+  const analysis = analyses.get(analysisId);
+
+  try {
+    console.log(`🔍 Starting GitHub API analysis for: ${repoUrl}`);
+
+    // Get repository info
+    const repoInfo = await getRepositoryInfo(repoUrl);
+    console.log(`✅ Repository info retrieved: ${repoInfo.name}`);
+
+    // Calculate date range for filtering
+    let sinceDate = null;
+    if (timeRange !== "all") {
+      const now = new Date();
+      switch (timeRange) {
+        case "last_month":
+          sinceDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case "last_6months":
+          sinceDate = new Date(now.getTime() - 6 * 30 * 24 * 60 * 60 * 1000);
+          break;
+        case "last_year":
+          sinceDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+          break;
+      }
+    }
+
+    // Get commits from GitHub API
+    const commits = await getCommitsFromGitHub(repoUrl, maxCommits, sinceDate);
+    console.log(`✅ Retrieved ${commits.length} commits from GitHub API`);
+
+    if (commits.length === 0) {
+      analysis.status = "completed";
+      analysis.completedAt = new Date();
+      analysis.metrics = {
+        totalCommits: 0,
+        totalFiles: 0,
+        contributors: 0,
+        timeRange: { firstCommit: null, lastCommit: null },
+        analysisScope: {
+          maxCommits,
+          timeRange,
+          sinceDate: sinceDate?.toISOString() || null,
+        },
+      };
+      analysis.summary = {
+        mostActiveFiles: [],
+        topContributors: [],
+        majorFeatures: [],
+      };
+      analysis.error = "No commits found in the specified time range";
+
+      analysisResults.set(analysisId, {
+        commits: [],
+        contributors: [],
+        fileOwnership: [],
+        complexity: [],
+        features: [],
+        insights: ["No commits found in the specified time range"],
+      });
+      return;
+    }
+
+    // Process commits similar to git analysis
+    const contributors = new Map();
+    const fileOwnership = new Map();
+    const commitPatterns = [];
+
+    for (const commit of commits) {
+      // Track contributors
+      const author = commit.author;
+      if (!contributors.has(author)) {
+        contributors.set(author, {
+          name: author,
+          commits: 0,
+          linesAdded: 0,
+          linesRemoved: 0,
+          filesOwned: new Set(),
+          primaryAreas: new Set(),
+        });
+      }
+      contributors.get(author).commits++;
+      contributors.get(author).linesAdded += commit.linesAdded;
+      contributors.get(author).linesRemoved += commit.linesRemoved;
+
+      // Track file ownership
+      for (const file of commit.files) {
+        contributors.get(author).filesOwned.add(file);
+
+        if (!fileOwnership.has(file)) {
+          fileOwnership.set(file, new Map());
+        }
+        const fileContributors = fileOwnership.get(file);
+        fileContributors.set(author, (fileContributors.get(author) || 0) + 1);
+      }
+
+      // Add to commit patterns
+      commitPatterns.push({
+        hash: commit.hash,
+        author: commit.author,
+        date: commit.date,
+        message: commit.message,
+        body: commit.body,
+        files: commit.files,
+        linesAdded: commit.linesAdded,
+        linesRemoved: commit.linesRemoved,
+      });
+    }
+
+    // Calculate complexity and trends
+    const complexityData = calculateComplexityTrends(commitPatterns);
+
+    // Extract business features using AI
+    const features = await extractBusinessFeaturesWithAI(commitPatterns);
+
+    // Generate insights
+    const insights = await generateInsightsWithAI(
+      commitPatterns,
+      contributors,
+      fileOwnership
+    );
+
+    // Update analysis with results
+    analysis.status = "completed";
+    analysis.completedAt = new Date();
+    analysis.metrics = {
+      totalCommits: commits.length,
+      totalFiles: fileOwnership.size,
+      contributors: contributors.size,
+      timeRange: {
+        firstCommit: commits[commits.length - 1]?.date || null,
+        lastCommit: commits[0]?.date || null,
+      },
+      analysisScope: {
+        maxCommits: maxCommits,
+        timeRange: timeRange,
+        sinceDate: sinceDate?.toISOString() || null,
+        totalCommitsInRepo: repoInfo.size || null,
+      },
+    };
+    analysis.summary = {
+      mostActiveFiles: getMostActiveFiles(fileOwnership, 10),
+      topContributors: getTopContributors(contributors, 10),
+      majorFeatures: features.map((f) => f.name),
+    };
+
+    // Store detailed results
+    analysisResults.set(analysisId, {
+      commits: commitPatterns,
+      contributors: Array.from(contributors.values()).map((c) => ({
+        ...c,
+        filesOwned: c.filesOwned.size,
+        primaryAreas: Array.from(c.primaryAreas),
+      })),
+      fileOwnership: Array.from(fileOwnership.entries()).map(
+        ([file, contributors]) => ({
+          file,
+          contributors: Array.from(contributors.entries()).map(
+            ([name, count]) => ({ name, count })
+          ),
+        })
+      ),
+      complexity: complexityData,
+      features: features,
+      insights: insights,
+    });
+
+    console.log(`✅ GitHub API analysis completed for: ${repoUrl}`);
+  } catch (error) {
+    console.error("GitHub API analysis failed:", error);
+    analysis.status = "failed";
+    analysis.error = `GitHub API analysis failed: ${error.message}`;
   }
 }
 
@@ -1418,6 +1777,24 @@ function determineCommitImpact(commit) {
   return "low";
 }
 
+// GET /api/codebase-time-machine/routes
+// List all available routes (for debugging)
+router.get("/routes", (req, res) => {
+  const routes = router.stack
+    .filter((layer) => layer.route)
+    .map((layer) => ({
+      method: Object.keys(layer.route.methods)[0].toUpperCase(),
+      path: layer.route.path,
+      description: layer.route.stack[0].name || "No description",
+    }));
+
+  res.json({
+    service: "Codebase Time Machine API",
+    routes: routes,
+    totalRoutes: routes.length,
+  });
+});
+
 // GET /api/codebase-time-machine/health
 // Health check endpoint for App Runner
 router.get("/health", async (req, res) => {
@@ -1516,6 +1893,62 @@ router.get("/debug-storage", async (req, res) => {
   }
 });
 
+// GET /api/codebase-time-machine/test-github-api
+// Test GitHub API access (for debugging)
+router.get("/test-github-api", async (req, res) => {
+  try {
+    const { repoUrl } = req.query;
+    if (!repoUrl) {
+      return res.status(400).json({ error: "Repository URL is required" });
+    }
+
+    console.log(`🔍 Testing GitHub API access: ${repoUrl}`);
+
+    // Test repository info
+    const repoInfo = await getRepositoryInfo(repoUrl);
+    console.log(
+      `✅ Repository info: ${repoInfo.name} (${repoInfo.stargazers_count} stars)`
+    );
+
+    // Test commits access
+    const commits = await getCommitsFromGitHub(repoUrl, 5);
+    console.log(`✅ Retrieved ${commits.length} commits`);
+
+    res.json({
+      accessible: true,
+      repository: {
+        name: repoInfo.name,
+        description: repoInfo.description,
+        stars: repoInfo.stargazers_count,
+        forks: repoInfo.forks_count,
+        language: repoInfo.language,
+        size: repoInfo.size,
+        defaultBranch: repoInfo.default_branch,
+      },
+      commits: commits.map((c) => ({
+        hash: c.hash.substring(0, 8),
+        author: c.author,
+        message: c.message,
+        date: c.date,
+        files: c.files.length,
+        linesAdded: c.linesAdded,
+        linesRemoved: c.linesRemoved,
+      })),
+      rateLimit: {
+        note: "GitHub API rate limits apply. Consider adding GITHUB_TOKEN for higher limits.",
+      },
+    });
+  } catch (error) {
+    console.error(`❌ GitHub API test failed: ${error.message}`);
+    res.json({
+      accessible: false,
+      error: error.message,
+      solution:
+        "Check repository URL and ensure it's a public GitHub repository",
+    });
+  }
+});
+
 // GET /api/codebase-time-machine/test-repo-access
 // Test repository access (for debugging)
 router.get("/test-repo-access", async (req, res) => {
@@ -1538,6 +1971,8 @@ router.get("/test-repo-access", async (req, res) => {
       return res.json({
         accessible: false,
         error: `Git not available: ${gitError.message}`,
+        solution:
+          "Git needs to be installed in the Docker container. Update Dockerfile to include: RUN apk add --no-cache git",
         tests: { git: false },
       });
     }

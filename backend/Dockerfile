@@ -1,5 +1,10 @@
 FROM node:18-alpine
 
+# Install git and other necessary packages
+RUN apk add --no-cache git curl && \
+    git --version && \
+    echo "Git installation verified"
+
 # Set working directory
 WORKDIR /app
 

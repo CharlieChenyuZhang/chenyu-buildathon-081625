@@ -115,8 +115,9 @@ function CodebaseTimeMachine() {
     setIsAnalyzing(true);
     setError(null);
     try {
+      // Use GitHub API endpoint instead of cloning
       const response = await api.post(
-        "/api/codebase-time-machine/analyze-repo",
+        "/api/codebase-time-machine/analyze-repo", // Temporarily use original endpoint
         repoForm
       );
       setAnalyses((prev) => [...prev, response.data.analysis]);
