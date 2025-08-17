@@ -58,6 +58,7 @@ const voiceToSlideRoutes = require("./routes/voiceToSlide");
 const employeeEngagementRoutes = require("./routes/employeeEngagement");
 const codebaseTimeMachineRoutes = require("./routes/codebaseTimeMachine");
 const knowledgeGraphRoutes = require("./routes/knowledgeGraph");
+const inboxTriageRoutes = require("./routes/inboxTriage");
 
 // Route middleware
 app.use("/api/visual-memory", visualMemoryRoutes);
@@ -65,6 +66,7 @@ app.use("/api/voice-to-slide", voiceToSlideRoutes);
 app.use("/api/employee-engagement", employeeEngagementRoutes);
 app.use("/api/codebase-time-machine", codebaseTimeMachineRoutes);
 app.use("/api/knowledge-graph", knowledgeGraphRoutes);
+app.use("/api/inbox-triage", inboxTriageRoutes);
 
 // Health check endpoint (for App Runner)
 app.get("/health", (req, res) => {

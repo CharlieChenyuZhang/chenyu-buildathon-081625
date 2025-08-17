@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Link,
+  useLocation,
+} from "react-router-dom";
 import "./App.css";
 
 // Import project components
@@ -8,11 +14,13 @@ import VoiceToSlide from "./components/VoiceToSlide";
 import EmployeeEngagement from "./components/EmployeeEngagement";
 import CodebaseTimeMachine from "./components/CodebaseTimeMachine";
 import KnowledgeGraph from "./components/KnowledgeGraph";
-import EnvironmentIndicator from "./components/EnvironmentIndicator";
+import InboxTriage from "./components/InboxTriage";
 
 function Navigation() {
   const location = useLocation();
-  
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
   const navItems = [
     { path: "/", label: "Home" },
     { path: "/visual-memory", label: "Visual Memory" },
@@ -20,18 +28,84 @@ function Navigation() {
     { path: "/employee-engagement", label: "Employee Engagement" },
     { path: "/codebase-time-machine", label: "Codebase Time Machine" },
     { path: "/knowledge-graph", label: "Knowledge Graph" },
+    { path: "/inbox-triage", label: "Inbox Triage" },
   ];
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+      if (window.innerWidth > 768) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    handleResize(); // Set initial state
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Close menu when route changes
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location.pathname]);
+
+  // Handle keyboard events for accessibility
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && isMenuOpen) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    if (isMenuOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+      // Prevent body scroll when menu is open
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "unset";
+    };
+  }, [isMenuOpen]);
+
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
+  };
 
   return (
     <nav className="navbar">
       <div className="nav-container">
         <h1 className="nav-title">Buildathon Projects</h1>
-        <ul className="nav-menu">
+
+        {/* Hamburger menu button for mobile */}
+        <button
+          className={`hamburger ${isMenuOpen ? "active" : ""}`}
+          onClick={toggleMenu}
+          aria-label="Toggle navigation menu"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        {/* Backdrop overlay for mobile menu */}
+        {isMenuOpen && (
+          <div className="nav-backdrop" onClick={() => setIsMenuOpen(false)} />
+        )}
+
+        <ul className={`nav-menu ${isMenuOpen ? "active" : ""}`}>
           {navItems.map((item) => (
             <li className="nav-item" key={item.path}>
-              <Link 
-                to={item.path} 
-                className={`nav-link ${location.pathname === item.path ? 'active' : ''}`}
+              <Link
+                to={item.path}
+                className={`nav-link ${
+                  location.pathname === item.path ? "active" : ""
+                }`}
+                onClick={() => setIsMenuOpen(false)}
               >
                 {item.label}
               </Link>
@@ -62,9 +136,9 @@ function App() {
               element={<CodebaseTimeMachine />}
             />
             <Route path="/knowledge-graph" element={<KnowledgeGraph />} />
+            <Route path="/inbox-triage" element={<InboxTriage />} />
           </Routes>
         </main>
-        <EnvironmentIndicator />
       </div>
     </Router>
   );
@@ -125,6 +199,18 @@ function Home() {
             NL Q&A.
           </p>
           <Link to="/knowledge-graph" className="project-link">
+            Open Project
+          </Link>
+        </div>
+
+        <div className="project-card">
+          <h3>Inbox Triage Assistant</h3>
+          <p>
+            Cluster your last 200 emails into actionable groups and archive them
+            with one click. Get your inbox organized with AI-powered email
+            management.
+          </p>
+          <Link to="/inbox-triage" className="project-link">
             Open Project
           </Link>
         </div>

@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { api } from "../config/api";
+import React, { useState, useEffect } from "react";
+import { api, apiConfig } from "../config/api";
 import "./VisualMemory.css";
 
 function VisualMemory() {
@@ -509,7 +509,7 @@ function VisualMemory() {
                 {/* Thumbnail */}
                 <div className="result-thumbnail">
                   <img
-                    src={`/api/visual-memory/thumbnail/${result.id}`}
+                    src={`${apiConfig.baseURL}/api/visual-memory/thumbnail/${result.id}`}
                     alt={result.originalName || result.filename}
                     onError={(e) => {
                       e.target.style.display = "none";
@@ -670,7 +670,7 @@ function VisualMemory() {
                 <div key={screenshot.id || index} className="image-card">
                   <div className="image-thumbnail">
                     <img
-                      src={`/api/visual-memory/thumbnail/${screenshot.id}`}
+                      src={`${apiConfig.baseURL}/api/visual-memory/thumbnail/${screenshot.id}`}
                       alt={screenshot.originalName || screenshot.filename}
                       onError={(e) => {
                         e.target.style.display = "none";

@@ -1,33 +1,33 @@
-import axios from 'axios';
-import { getEnvironmentConfig } from './environment';
+import axios from "axios";
+import { getEnvironmentConfig } from "./environment";
 
 // API Configuration for different environments
 const API_CONFIG = {
   // Local development - uses local backend
   development: {
-    baseURL: 'http://localhost:8080',
+    baseURL: "http://localhost:8080",
     timeout: 30000,
   },
   // Production - uses deployed backend
   production: {
-    baseURL: 'https://b2tutnx6u2.us-east-1.awsapprunner.com',
+    baseURL: "https://b2tutnx6u2.us-east-1.awsapprunner.com",
     timeout: 30000,
   },
   // Test environment
   test: {
-    baseURL: '',
+    baseURL: "",
     timeout: 5000,
-  }
+  },
 };
 
 // Get current environment
 const getEnvironment = () => {
-  if (process.env.NODE_ENV === 'production') {
-    return 'production';
-  } else if (process.env.NODE_ENV === 'test') {
-    return 'test';
+  if (process.env.NODE_ENV === "production") {
+    return "production";
+  } else if (process.env.NODE_ENV === "test") {
+    return "test";
   } else {
-    return 'development';
+    return "development";
   }
 };
 
@@ -40,24 +40,26 @@ const getApiConfig = () => {
 // Create axios instance with proper configuration
 const createApiInstance = () => {
   const config = getApiConfig();
-  
+
   const instance = axios.create({
     baseURL: config.baseURL,
     timeout: config.timeout,
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
 
   // Add request interceptor for logging in development
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === "development") {
     instance.interceptors.request.use(
       (config) => {
-        console.log(`🌐 API Request: ${config.method?.toUpperCase()} ${config.url}`);
+        console.log(
+          `🌐 API Request: ${config.method?.toUpperCase()} ${config.url}`
+        );
         return config;
       },
       (error) => {
-        console.error('❌ API Request Error:', error);
+        console.error("❌ API Request Error:", error);
         return Promise.reject(error);
       }
     );
@@ -65,11 +67,17 @@ const createApiInstance = () => {
     // Add response interceptor for logging in development
     instance.interceptors.response.use(
       (response) => {
-        console.log(`✅ API Response: ${response.status} ${response.config.url}`);
+        console.log(
+          `✅ API Response: ${response.status} ${response.config.url}`
+        );
         return response;
       },
       (error) => {
-        console.error('❌ API Response Error:', error.response?.status, error.response?.data);
+        console.error(
+          "❌ API Response Error:",
+          error.response?.status,
+          error.response?.data
+        );
         return Promise.reject(error);
       }
     );
@@ -95,7 +103,7 @@ export const getFullUrl = (endpoint) => {
 export const getEnvironmentInfo = () => ({
   environment: getEnvironment(),
   apiConfig: getApiConfig(),
-  isDevelopment: getEnvironment() === 'development',
-  isProduction: getEnvironment() === 'production',
-  isTest: getEnvironment() === 'test',
+  isDevelopment: getEnvironment() === "development",
+  isProduction: getEnvironment() === "production",
+  isTest: getEnvironment() === "test",
 });

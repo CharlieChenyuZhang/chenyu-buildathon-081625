@@ -588,6 +588,67 @@ Focus on:
 }
 
 /**
+ * Analyze and cluster emails into actionable groups using GPT-4o
+ * @param {Array} emails - Array of email objects
+ * @returns {Promise<Object>} Email clustering analysis
+ */
+async function analyzeEmailClusters(emails) {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert email management specialist. Analyze the provided emails and cluster them into actionable groups.
+
+Return a JSON object with the following structure:
+{
+  "clusters": [
+    {
+      "name": "Cluster name (e.g., 'Urgent Work Items', 'Personal Messages', 'Newsletters')",
+      "description": "Brief description of what this cluster contains",
+      "action": "Recommended action (e.g., 'Review today', 'Archive', 'Schedule follow-up')",
+      "emailIds": ["email_id_1", "email_id_2"],
+      "priority": "high|medium|low"
+    }
+  ],
+  "analysis": {
+    "totalEmails": 10,
+    "clusterCount": 3,
+    "urgentItems": 2,
+    "summary": "Brief summary of email patterns and recommendations"
+  }
+}
+
+Focus on:
+- Grouping emails by purpose and urgency
+- Identifying actionable items
+- Suggesting appropriate actions for each cluster
+- Prioritizing based on importance and time sensitivity
+- Creating meaningful cluster names that indicate the action needed
+
+Aim for 3-5 clusters that are actionable and meaningful.`,
+        },
+        {
+          role: "user",
+          content: `Analyze and cluster these emails: ${JSON.stringify(
+            emails
+          )}`,
+        },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 2000,
+      temperature: 0.2,
+    });
+
+    return JSON.parse(response.choices[0].message.content);
+  } catch (error) {
+    console.error("Error analyzing email clusters:", error);
+    throw new Error("Failed to analyze email clusters");
+  }
+}
+
+/**
  * Detect entities from image using GPT-4 Vision
  * @param {Buffer} imageBuffer - Image buffer
  * @param {string} imageType - Image type (png, jpg, etc.)
@@ -703,4 +764,5 @@ module.exports = {
   generateEngagementInsights,
   generateTrendAnalysis,
   generateAlertAnalysis,
+  analyzeEmailClusters,
 };
