@@ -13,7 +13,6 @@ import VisualMemory from "./components/VisualMemory";
 import VoiceToSlide from "./components/VoiceToSlide";
 import EmployeeEngagement from "./components/EmployeeEngagement";
 import CodebaseTimeMachine from "./components/CodebaseTimeMachine";
-import KnowledgeGraph from "./components/KnowledgeGraph";
 import InboxTriage from "./components/InboxTriage";
 
 function Navigation() {
@@ -27,7 +26,6 @@ function Navigation() {
     { path: "/voice-to-slide", label: "Voice to Slide" },
     { path: "/employee-engagement", label: "Employee Engagement" },
     { path: "/codebase-time-machine", label: "Codebase Time Machine" },
-    { path: "/knowledge-graph", label: "Knowledge Graph" },
     { path: "/inbox-triage", label: "Inbox Triage" },
   ];
 
@@ -135,7 +133,6 @@ function App() {
               path="/codebase-time-machine"
               element={<CodebaseTimeMachine />}
             />
-            <Route path="/knowledge-graph" element={<KnowledgeGraph />} />
             <Route path="/inbox-triage" element={<InboxTriage />} />
           </Routes>
         </main>
@@ -188,17 +185,6 @@ function Home() {
             features and architectural decisions.
           </p>
           <Link to="/codebase-time-machine" className="project-link">
-            Open Project
-          </Link>
-        </div>
-
-        <div className="project-card">
-          <h3>Universal Knowledge-Graph Builder</h3>
-          <p>
-            Convert a document archive into an interactive knowledge graph with
-            NL Q&A.
-          </p>
-          <Link to="/knowledge-graph" className="project-link">
             Open Project
           </Link>
         </div>
